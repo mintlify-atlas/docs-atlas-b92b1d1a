@@ -1,0 +1,106 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "Based Roop",
+  "projectDescription": "AI-powered face swapping tool for images and videos with real-time processing capabilities",
+  "theme": "aspen",
+  "primaryColor": "#ee6d2d",
+  "lightColor": "#36ab56",
+  "darkColor": "#73a2f0",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/gui-mode",
+              "guides/cli-mode",
+              "guides/webcam-mode",
+              "guides/gpu-acceleration"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/face-swapping",
+              "concepts/face-enhancement",
+              "concepts/frame-processors",
+              "concepts/execution-providers"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/configuration",
+              "advanced/performance-tuning",
+              "advanced/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Modules",
+            "pages": [
+              "api/core",
+              "api/globals",
+              "api/face-analyser",
+              "api/utilities"
+            ]
+          },
+          {
+            "group": "Frame Processors",
+            "pages": [
+              "api/processors/face-swapper",
+              "api/processors/face-enhancer"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "api/cli-options"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Face swapping in images and videos",
+    "Real-time webcam face swapping",
+    "GFPGAN face enhancement",
+    "Multi-face processing support",
+    "GUI and CLI modes",
+    "GPU acceleration with CUDA",
+    "Frame extraction and video encoding"
+  ],
+  "publicApiSurface": [
+    "roop.core.run()",
+    "roop.core.start()",
+    "roop.processors.frame.face_swapper.process_frame()",
+    "roop.processors.frame.face_swapper.process_image()",
+    "roop.processors.frame.face_swapper.process_video()",
+    "roop.processors.frame.face_enhancer.process_frame()",
+    "roop.processors.frame.face_enhancer.enhance_face()",
+    "roop.face_analyser.get_one_face()",
+    "roop.face_analyser.get_many_faces()",
+    "roop.ui.init()",
+    "python run.py --source <path> --target <path> --output <path>",
+    "--frame-processor [face_swapper, face_enhancer]",
+    "--many-faces",
+    "--keep-fps",
+    "--keep-audio",
+    "--execution-provider [cpu, cuda, ...]"
+  ]
+}

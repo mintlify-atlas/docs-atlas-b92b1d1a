@@ -68,6 +68,9 @@
               "api/core",
               "api/globals",
               "api/face-analyser",
+              "api/capturer",
+              "api/predicter",
+              "api/typing",
               "api/utilities"
             ]
           },

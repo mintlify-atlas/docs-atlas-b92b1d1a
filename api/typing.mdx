@@ -1,0 +1,126 @@
+---
+title: "Typing Module"
+description: "Type definitions and type hints for Based Roop"
+---
+
+The `typing` module provides type aliases and definitions used throughout the Based Roop codebase for better type safety and IDE support.
+
+## Type Definitions
+
+### Face
+
+The Face type represents a detected face in an image or frame.
+
+```python
+from insightface.app.common import Face
+
+Face = Face
+```
+
+**Properties:**
+
+The Face object is provided by the InsightFace library and contains:
+
+- `bbox` - Bounding box coordinates [x1, y1, x2, y2]
+- `kps` - Facial keypoints (5 points: eyes, nose, mouth corners)
+- `det_score` - Detection confidence score
+- `embedding` - Face embedding vector (512 dimensions)
+- `gender` - Gender prediction
+- `age` - Age prediction
+
+**Usage Example:**
+
+```python
+from roop.typing import Face
+from roop.face_analyser import get_one_face
+import cv2
+
+image = cv2.imread('photo.jpg')
+face: Face = get_one_face(image)
+
+if face:
+    print(f"Face detected at {face.bbox}")
+    print(f"Detection score: {face.det_score}")
+```
+
+### Frame
+
+The Frame type represents an image or video frame as a NumPy array.
+
+```python
+import numpy
+from typing import Any
+
+Frame = numpy.ndarray[Any, Any]
+```
+
+**Format:**
+
+- Shape: `(height, width, channels)` for color images
+- Dtype: Typically `uint8` (0-255 range)
+- Color space: BGR (OpenCV default)
+
+**Usage Example:**
+
+```python
+from roop.typing import Frame
+import cv2
+import numpy as np
+
+# Load a frame
+frame: Frame = cv2.imread('image.jpg')
+
+# Create a blank frame
+blank_frame: Frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+# Process frame
+print(f"Frame shape: {frame.shape}")
+print(f"Frame dtype: {frame.dtype}")
+```
+
+## Type Usage
+
+These types are used throughout the codebase for function signatures:
+
+```python
+# Face swapper example
+def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
+    ...
+
+# Face analyser example
+def get_one_face(frame: Frame) -> Face:
+    ...
+```
+
+## Benefits
+
+Using these type definitions provides:
+
+1. **IDE Support**: Better autocomplete and type hints in your editor
+2. **Type Safety**: Catch type errors before runtime with mypy or similar tools
+3. **Documentation**: Function signatures clearly indicate expected types
+4. **Consistency**: Unified type names across the entire codebase
+
+## Related Types
+
+The codebase also uses standard Python typing constructs:
+
+```python
+from typing import List, Callable, Any, Optional
+
+# Example from frame processors
+def process_frames(
+    source_path: str,
+    temp_frame_paths: List[str],
+    update: Callable[[], None]
+) -> None:
+    ...
+```
+
+**Source:** `roop/typing.py`
+
+## See Also
+
+- [Face Analyser Module](/api/face-analyser) - Functions that work with Face objects
+- [Frame Processors](/concepts/frame-processors) - Processing pipeline using Frame objects
+- [Face Swapper API](/api/processors/face-swapper) - Face and Frame usage examples

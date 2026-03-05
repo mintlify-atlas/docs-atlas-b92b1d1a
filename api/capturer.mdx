@@ -1,0 +1,80 @@
+---
+title: "Capturer Module"
+description: "Video frame capture utilities for preview and processing"
+---
+
+The `capturer` module provides functions for extracting frames from video files for preview and processing purposes.
+
+## Functions
+
+### get_video_frame()
+
+Extracts a specific frame from a video file.
+
+```python
+def get_video_frame(video_path: str, frame_number: int = 0) -> Any
+```
+
+<ParamField path="video_path" type="string" required>
+  Path to the video file
+</ParamField>
+
+<ParamField path="frame_number" type="integer" default="0">
+  Frame index to extract (0-based)
+</ParamField>
+
+<ResponseField name="return" type="numpy.ndarray | None">
+  The extracted frame as a NumPy array, or None if the frame could not be read
+</ResponseField>
+
+**Usage Example:**
+
+```python
+from roop.capturer import get_video_frame
+
+# Get the first frame
+frame = get_video_frame('video.mp4', 0)
+
+# Get frame 100
+frame = get_video_frame('video.mp4', 100)
+```
+
+<Note>
+  The function automatically clamps the frame number to the total frame count to prevent errors.
+</Note>
+
+### get_video_frame_total()
+
+Returns the total number of frames in a video file.
+
+```python
+def get_video_frame_total(video_path: str) -> int
+```
+
+<ParamField path="video_path" type="string" required>
+  Path to the video file
+</ParamField>
+
+<ResponseField name="return" type="integer">
+  Total number of frames in the video
+</ResponseField>
+
+**Usage Example:**
+
+```python
+from roop.capturer import get_video_frame_total
+
+total_frames = get_video_frame_total('video.mp4')
+print(f"Video has {total_frames} frames")
+```
+
+## Implementation Details
+
+Both functions use OpenCV's `VideoCapture` class and properly release resources after reading frames.
+
+**Source:** `roop/capturer.py`
+
+## See Also
+
+- [Utilities Module](/api/utilities) - Additional video processing utilities
+- [GUI Mode](/guides/gui-mode) - Preview functionality that uses the capturer module

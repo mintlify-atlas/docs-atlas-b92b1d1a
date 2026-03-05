@@ -1,0 +1,129 @@
+---
+title: "Predicter Module"
+description: "NSFW content detection and filtering"
+---
+
+The `predicter` module provides content safety detection using the OpenNSFW2 model to prevent processing of inappropriate media.
+
+## Overview
+
+Based Roop includes built-in NSFW (Not Safe For Work) content detection to prevent misuse. The predicter module runs checks on source and target media before processing.
+
+<Warning>
+  If inappropriate content is detected, the application will refuse to process the media. This is a core safety feature and cannot be disabled.
+</Warning>
+
+## Functions
+
+### predict_frame()
+
+Checks if a single frame contains inappropriate content.
+
+```python
+def predict_frame(target_frame: Frame) -> bool
+```
+
+<ParamField path="target_frame" type="Frame (numpy.ndarray)" required>
+  The frame to check as a NumPy array
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if inappropriate content is detected, False otherwise
+</ResponseField>
+
+**Usage Example:**
+
+```python
+import cv2
+from roop.predicter import predict_frame
+
+frame = cv2.imread('image.jpg')
+if predict_frame(frame):
+    print("Inappropriate content detected")
+else:
+    print("Content is safe to process")
+```
+
+### predict_image()
+
+Checks if an image file contains inappropriate content.
+
+```python
+def predict_image(target_path: str) -> bool
+```
+
+<ParamField path="target_path" type="string" required>
+  Path to the image file to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if inappropriate content is detected, False otherwise
+</ResponseField>
+
+**Usage Example:**
+
+```python
+from roop.predicter import predict_image
+
+if predict_image('photo.jpg'):
+    print("Cannot process this image")
+```
+
+### predict_video()
+
+Checks if a video file contains inappropriate content by sampling frames.
+
+```python
+def predict_video(target_path: str) -> bool
+```
+
+<ParamField path="target_path" type="string" required>
+  Path to the video file to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if inappropriate content is detected in any sampled frame, False otherwise
+</ResponseField>
+
+**Usage Example:**
+
+```python
+from roop.predicter import predict_video
+
+if predict_video('video.mp4'):
+    print("Video contains inappropriate content")
+```
+
+<Note>
+  The function samples frames at 100-frame intervals for efficiency rather than checking every frame.
+</Note>
+
+## Implementation Details
+
+- Uses the **OpenNSFW2** model for content classification
+- Applies Yahoo preprocessing to images before inference
+- Currently set with `MAX_PROBABILITY = 0`, meaning any detection triggers a positive result
+- Model is loaded on-demand when first needed
+
+**Source:** `roop/predicter.py`
+
+## Integration
+
+The predicter module is automatically invoked in these scenarios:
+
+1. **GUI Preview Mode**: Before showing preview, frames are checked (see [GUI Mode](/guides/gui-mode))
+2. **CLI Processing**: Source and target media are validated before processing starts
+3. **Frame Processing**: Individual frames are checked during the processing pipeline
+
+## Ethical Use
+
+This safety feature is part of Based Roop's commitment to responsible AI use. From the project README:
+
+<Note>
+  "The developers of this software are aware of its possible unethical applications and are committed to take preventative measures against them."
+</Note>
+
+## See Also
+
+- [Face Swapping Concepts](/concepts/face-swapping) - How face swapping works with safety checks
+- [Troubleshooting](/advanced/troubleshooting) - Common issues with content detection

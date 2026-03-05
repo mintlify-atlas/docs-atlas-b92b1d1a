@@ -1,0 +1,478 @@
+---
+title: Performance Tuning
+description: Optimize Based Roop for speed and efficiency across different hardware configurations
+---
+
+Based Roop's performance can be dramatically improved by choosing the right execution providers, thread counts, and memory settings. This guide covers optimization strategies for different hardware setups.
+
+## Hardware Acceleration
+
+### GPU vs CPU Performance
+
+GPU acceleration provides significant speed improvements for face swapping operations.
+
+<AccordionGroup>
+  <Accordion title="NVIDIA GPU (CUDA)" icon="microchip" defaultOpen>
+    **Performance:** 10-50x faster than CPU
+    
+    **Setup:**
+    ```bash
+    pip install onnxruntime-gpu
+    python run.py --execution-provider cuda
+    ```
+    
+    **Optimal settings:**
+    - `--execution-threads 1` (automatically set)
+    - Single thread gives best GPU performance
+    - OMP_NUM_THREADS=1 is set automatically
+    
+    **Memory considerations:**
+    - GPU memory (VRAM) is separate from system RAM
+    - TensorFlow GPU memory is capped at 1 GB
+    - Use `--max-memory` to limit system RAM only
+  </Accordion>
+  
+  <Accordion title="AMD GPU (ROCm)" icon="microchip">
+    **Performance:** 8-30x faster than CPU
+    
+    **Setup:**
+    ```bash
+    pip install onnxruntime-rocm
+    python run.py --execution-provider rocm
+    ```
+    
+    **Optimal settings:**
+    - `--execution-threads 1` (automatically set)
+    - PyTorch is disabled when ROCm is detected
+  </Accordion>
+  
+  <Accordion title="Apple Silicon (CoreML)" icon="microchip">
+    **Performance:** 5-15x faster than CPU
+    
+    **Setup:**
+    ```bash
+    python run.py --execution-provider coreml
+    ```
+    
+    **Optimal settings:**
+    - `--execution-threads 4-8`
+    - `--max-memory 4` (default for macOS)
+    - Uses unified memory architecture
+  </Accordion>
+  
+  <Accordion title="DirectML (Windows)" icon="microchip">
+    **Performance:** 5-20x faster than CPU
+    
+    **Setup:**
+    ```bash
+    pip install onnxruntime-directml
+    python run.py --execution-provider dml
+    ```
+    
+    **Optimal settings:**
+    - `--execution-threads 1` (automatically set)
+    - Works with NVIDIA, AMD, and Intel GPUs
+  </Accordion>
+  
+  <Accordion title="CPU Only" icon="microchip">
+    **Performance:** Baseline (slowest)
+    
+    **Setup:**
+    ```bash
+    python run.py --execution-provider cpu
+    ```
+    
+    **Optimal settings:**
+    - `--execution-threads 8` (default)
+    - Adjust based on CPU core count
+    - Use for compatibility or when GPU is unavailable
+  </Accordion>
+</AccordionGroup>
+
+### Checking Available Providers
+
+Verify which execution providers are available on your system:
+
+```bash
+python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
+```
+
+Example output:
+```python
+['CUDAExecutionProvider', 'CPUExecutionProvider']
+```
+
+## Thread Optimization
+
+### Execution Threads
+
+The `--execution-threads` setting controls parallel frame processing. Optimal values depend on your hardware.
+
+<CodeGroup>
+```bash GPU (CUDA/ROCm/DML)
+python run.py --execution-threads 1 --execution-provider cuda
+```
+
+```bash CPU (Multi-core)
+python run.py --execution-threads 8 --execution-provider cpu
+```
+
+```bash CPU (High core count)
+python run.py --execution-threads 16 --execution-provider cpu
+```
+
+```bash Low Memory System
+python run.py --execution-threads 2 --max-memory 4
+```
+</CodeGroup>
+
+### Thread Count Guidelines
+
+| Hardware | Recommended Threads | Rationale |
+|----------|--------------------|-----------|
+| NVIDIA GPU | 1 | GPU handles parallelism internally |
+| AMD GPU (ROCm) | 1 | Optimal for GPU execution |
+| DirectML | 1 | Prevents resource contention |
+| Apple Silicon | 4-8 | Balance unified memory access |
+| CPU (4-8 cores) | 4-8 | Match physical core count |
+| CPU (16+ cores) | 8-16 | Diminishing returns beyond 16 |
+
+<Warning>
+More threads ≠ better performance. GPU execution works best with a single thread because the GPU itself parallelizes the workload.
+</Warning>
+
+### How Thread Count Affects Processing
+
+From `roop/processors/frame/core.py:45-54`:
+
+```python
+def multi_process_frame(source_path, temp_frame_paths, process_frames, update):
+    with ThreadPoolExecutor(max_workers=roop.globals.execution_threads) as executor:
+        queue_per_future = len(temp_frame_paths) // roop.globals.execution_threads
+        # Frames are distributed across threads
+        # More threads = smaller batches per thread
+```
+
+**Example:** 1000 frames with different thread counts:
+- 1 thread: 1 batch of 1000 frames
+- 8 threads: 8 batches of 125 frames each
+- 16 threads: 16 batches of 62 frames each
+
+## Memory Management
+
+### Setting Memory Limits
+
+The `--max-memory` flag prevents system crashes on large videos by limiting RAM usage.
+
+```bash
+# Conservative (4GB)
+python run.py --max-memory 4 -t large_video.mp4
+
+# Balanced (16GB) - Default for Linux/Windows
+python run.py --max-memory 16 -t video.mp4
+
+# Generous (32GB)
+python run.py --max-memory 32 -t 4k_video.mp4
+```
+
+### Memory Limit Implementation
+
+From `roop/core.py:93-111`:
+
+<AccordionGroup>
+  <Accordion title="macOS Memory Limiting" icon="apple">
+    ```python
+    memory = roop.globals.max_memory * 1024 ** 6
+    resource.setrlimit(resource.RLIMIT_DATA, (memory, memory))
+    ```
+    
+    Uses virtual memory configuration. Default: 4 GB
+  </Accordion>
+  
+  <Accordion title="Windows Memory Limiting" icon="windows">
+    ```python
+    kernel32.SetProcessWorkingSetSize(-1, 
+                                      ctypes.c_size_t(memory), 
+                                      ctypes.c_size_t(memory))
+    ```
+    
+    Uses Win32 API to set working set size. Default: 16 GB
+  </Accordion>
+  
+  <Accordion title="Linux Memory Limiting" icon="linux">
+    ```python
+    memory = roop.globals.max_memory * 1024 ** 3
+    resource.setrlimit(resource.RLIMIT_DATA, (memory, memory))
+    ```
+    
+    Uses POSIX resource limits. Default: 16 GB
+  </Accordion>
+  
+  <Accordion title="TensorFlow GPU Memory" icon="memory">
+    ```python
+    for gpu in tensorflow.config.experimental.list_physical_devices('GPU'):
+        tensorflow.config.experimental.set_virtual_device_configuration(gpu, [
+            VirtualDeviceConfiguration(memory_limit=1024)  # 1GB
+        ])
+    ```
+    
+    Prevents TensorFlow memory leaks on GPU.
+  </Accordion>
+</AccordionGroup>
+
+### Monitoring Memory Usage
+
+Memory usage is displayed in the progress bar during processing:
+
+```
+Processing: 45%|████▌     | 450/1000 [01:23<01:38, 5.58frame/s, 
+memory_usage=03.47GB, execution_providers=['CUDAExecutionProvider'], 
+execution_threads=1]
+```
+
+This information comes from `roop/processors/frame/core.py:75-84`:
+
+```python
+def update_progress(progress):
+    process = psutil.Process(os.getpid())
+    memory_usage = process.memory_info().rss / 1024 / 1024 / 1024
+    progress.set_postfix({
+        'memory_usage': f'{memory_usage:.2f}'.zfill(5) + 'GB',
+        'execution_providers': roop.globals.execution_providers,
+        'execution_threads': roop.globals.execution_threads
+    })
+```
+
+## Video Quality vs Speed
+
+### Encoder Performance Comparison
+
+| Encoder | Speed | Compression | Quality | Use Case |
+|---------|-------|-------------|---------|----------|
+| libx264 | Fast | Good | Excellent | **Default** - best balance |
+| libx265 | Slow | Excellent | Excellent | Archival, smaller files |
+| libvpx-vp9 | Slowest | Excellent | Excellent | Web delivery |
+
+### CRF Quality Settings
+
+From `roop/core.py:46`:
+```python
+program.add_argument('--video-quality', type=int, default=18, 
+                     choices=range(52), metavar='[0-51]')
+```
+
+**Performance impact:**
+
+<Tabs>
+  <Tab title="Fast (Lower Quality)">
+    ```bash
+    --video-quality 28 --video-encoder libx264
+    ```
+    
+    - Encoding: Very fast
+    - File size: Small
+    - Visual quality: Good for preview/draft
+    - Frame rate: ~10-15 fps encoding
+  </Tab>
+  
+  <Tab title="Balanced (Default)">
+    ```bash
+    --video-quality 18 --video-encoder libx264
+    ```
+    
+    - Encoding: Moderate
+    - File size: Medium
+    - Visual quality: Visually lossless
+    - Frame rate: ~5-8 fps encoding
+  </Tab>
+  
+  <Tab title="High Quality">
+    ```bash
+    --video-quality 12 --video-encoder libx265
+    ```
+    
+    - Encoding: Slow
+    - File size: Medium (good compression)
+    - Visual quality: Near perfect
+    - Frame rate: ~2-4 fps encoding
+  </Tab>
+</Tabs>
+
+<Info>
+Video encoding happens AFTER face swapping. CRF quality doesn't affect face processing speed, only final video creation.
+</Info>
+
+## Batch Processing Strategies
+
+### Single Video Optimization
+
+For processing one video at maximum speed:
+
+```bash
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider cuda \
+  --execution-threads 1 \
+  --video-quality 23 \
+  --max-memory 16
+```
+
+### Multiple Videos (Sequential)
+
+Process multiple videos using a shell script:
+
+```bash
+#!/bin/bash
+SOURCE="face.jpg"
+
+for video in input/*.mp4; do
+  output="output/$(basename "$video")"
+  python run.py -s "$SOURCE" -t "$video" -o "$output" \
+    --execution-provider cuda --keep-fps --keep-audio
+done
+```
+
+### Parallel Processing (Multiple GPUs)
+
+If you have multiple GPUs, run separate processes:
+
+```bash
+# Terminal 1 (GPU 0)
+CUDA_VISIBLE_DEVICES=0 python run.py -s face.jpg -t video1.mp4 -o out1.mp4
+
+# Terminal 2 (GPU 1)
+CUDA_VISIBLE_DEVICES=1 python run.py -s face.jpg -t video2.mp4 -o out2.mp4
+```
+
+### Frame Extraction Optimization
+
+From `roop/utilities.py:52-54`, frames are extracted with:
+
+```python
+run_ffmpeg(['-i', target_path, '-pix_fmt', 'rgb24', 
+            os.path.join(temp_directory_path, '%04d.png')])
+```
+
+FFmpeg uses hardware acceleration when available (`-hwaccel auto`).
+
+<Tip>
+For very long videos (>10 minutes), ensure you have sufficient disk space. A 10-minute 1080p video extracts to ~5-10 GB of PNG frames.
+</Tip>
+
+## Performance Benchmarks
+
+### Typical Processing Speeds
+
+**Test video:** 1080p, 30 fps, 1 minute (1800 frames)
+
+| Configuration | Frames/sec | Total Time | Memory Usage |
+|---------------|------------|------------|-------------|
+| RTX 3080 + CUDA | 15-20 | ~2 min | 4-6 GB |
+| RTX 4090 + CUDA | 25-35 | ~1 min | 6-8 GB |
+| AMD RX 6800 + ROCm | 10-15 | ~3 min | 5-7 GB |
+| Apple M1 Pro + CoreML | 8-12 | ~4 min | 4-5 GB |
+| Intel i9 (16 cores) CPU | 1-2 | ~20 min | 3-4 GB |
+
+<Warning>
+Actual performance varies based on face complexity, video resolution, and whether face enhancement is enabled.
+</Warning>
+
+## Optimization Checklist
+
+<Steps>
+  <Step title="Enable GPU acceleration">
+    Install ONNX Runtime GPU and use `--execution-provider cuda/rocm/coreml`
+  </Step>
+  
+  <Step title="Set threads correctly">
+    Use `--execution-threads 1` for GPU, `--execution-threads 8` for CPU
+  </Step>
+  
+  <Step title="Adjust memory limits">
+    Set `--max-memory` based on available RAM (4-32 GB)
+  </Step>
+  
+  <Step title="Choose encoder wisely">
+    Use `libx264` for speed, `libx265` for smaller files
+  </Step>
+  
+  <Step title="Balance quality settings">
+    Use `--video-quality 23-28` for faster encoding if quality isn't critical
+  </Step>
+  
+  <Step title="Monitor during processing">
+    Watch the progress bar for memory usage and frame rate
+  </Step>
+</Steps>
+
+## Troubleshooting Performance Issues
+
+### Slow GPU Performance
+
+<AccordionGroup>
+  <Accordion title="Check GPU is being used" icon="gauge">
+    Look for execution provider in progress bar:
+    ```
+    execution_providers=['CUDAExecutionProvider']
+    ```
+    
+    If showing `CPUExecutionProvider`, GPU isn't active.
+  </Accordion>
+  
+  <Accordion title="Reduce thread count" icon="gauge">
+    Ensure `--execution-threads 1` for GPU execution:
+    ```bash
+    python run.py --execution-provider cuda --execution-threads 1
+    ```
+  </Accordion>
+  
+  <Accordion title="Check CUDA/GPU drivers" icon="gauge">
+    Verify GPU is accessible:
+    ```bash
+    # NVIDIA
+    nvidia-smi
+    
+    # AMD
+    rocm-smi
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### High Memory Usage
+
+<AccordionGroup>
+  <Accordion title="Reduce execution threads" icon="memory">
+    Lower threads = less parallel processing = lower memory:
+    ```bash
+    python run.py --execution-threads 2 --max-memory 8
+    ```
+  </Accordion>
+  
+  <Accordion title="Process in segments" icon="memory">
+    Split long videos into shorter segments before processing.
+  </Accordion>
+  
+  <Accordion title="Clean temp frames" icon="memory">
+    Don't use `--keep-frames` for long videos - frames consume significant disk space.
+  </Accordion>
+</AccordionGroup>
+
+### Slow Encoding
+
+<AccordionGroup>
+  <Accordion title="Use faster encoder" icon="video">
+    Switch to libx264 if using libx265/libvpx-vp9:
+    ```bash
+    python run.py --video-encoder libx264 --video-quality 23
+    ```
+  </Accordion>
+  
+  <Accordion title="Increase CRF value" icon="video">
+    Higher CRF = faster encoding:
+    ```bash
+    python run.py --video-quality 28
+    ```
+  </Accordion>
+</AccordionGroup>

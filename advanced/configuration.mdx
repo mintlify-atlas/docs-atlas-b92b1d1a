@@ -1,0 +1,333 @@
+---
+title: Configuration Options
+description: Complete guide to Based Roop configuration flags and settings
+---
+
+Based Roop provides extensive command-line configuration options to control face swapping behavior, video encoding, and performance settings.
+
+## Command Line Interface
+
+Launch the GUI:
+```bash
+python run.py
+```
+
+Run in CLI mode by providing a source image:
+```bash
+python run.py -s source.jpg -t target.mp4 -o output.mp4
+```
+
+## Core Arguments
+
+### Source and Target
+
+**`-s, --source SOURCE_PATH`**
+
+Select the source image containing the face you want to use for swapping.
+
+```bash
+python run.py -s face.jpg -t video.mp4
+```
+
+**`-t, --target TARGET_PATH`**
+
+Select the target image or video where the face will be replaced.
+
+```bash
+python run.py -s face.jpg -t target.mp4
+```
+
+**`-o, --output OUTPUT_PATH`**
+
+Specify the output file or directory. If a directory is provided, the output will be named `{source_name}-{target_name}{extension}`.
+
+```bash
+python run.py -s face.jpg -t video.mp4 -o result.mp4
+python run.py -s face.jpg -t video.mp4 -o ./outputs/
+```
+
+## Frame Processing
+
+### Frame Processors
+
+**`--frame-processor PROCESSOR [PROCESSOR ...]`**
+
+Select which frame processors to apply. Multiple processors can be chained together.
+
+Available processors:
+- `face_swapper` - Swaps faces (default)
+- `face_enhancer` - Enhances face quality
+
+```bash
+# Face swapping only (default)
+python run.py --frame-processor face_swapper
+
+# Face swapping + enhancement
+python run.py --frame-processor face_swapper face_enhancer
+```
+
+<Note>
+Default value: `['face_swapper']`
+</Note>
+
+### Face Detection Mode
+
+**`--many-faces`**
+
+Process every detected face in the frame instead of just the first one.
+
+```bash
+python run.py -s face.jpg -t group_video.mp4 --many-faces
+```
+
+<Info>
+By default, only the leftmost face (minimum x-coordinate) is processed. Use `--many-faces` for group videos.
+</Info>
+
+## Video Encoding Options
+
+### Video Encoder
+
+**`--video-encoder {libx264,libx265,libvpx-vp9}`**
+
+Select the output video codec. Different encoders offer trade-offs between file size, quality, and compatibility.
+
+```bash
+python run.py --video-encoder libx264  # H.264 (default, best compatibility)
+python run.py --video-encoder libx265  # H.265/HEVC (better compression)
+python run.py --video-encoder libvpx-vp9  # VP9 (open format)
+```
+
+<AccordionGroup>
+  <Accordion title="libx264 (H.264)" icon="video" defaultOpen>
+    - **Best compatibility** across devices and platforms
+    - Faster encoding than libx265
+    - Good quality/size ratio
+    - **Default option**
+  </Accordion>
+  
+  <Accordion title="libx265 (H.265/HEVC)" icon="video">
+    - Better compression than H.264 (smaller files)
+    - Slower encoding
+    - May not play on older devices
+    - Best for archival or streaming
+  </Accordion>
+  
+  <Accordion title="libvpx-vp9" icon="video">
+    - Open-source codec
+    - Excellent compression
+    - Slowest encoding
+    - Good for web delivery
+  </Accordion>
+</AccordionGroup>
+
+### Video Quality
+
+**`--video-quality [0-51]`**
+
+Adjust output video quality using the CRF (Constant Rate Factor) scale. Lower values = higher quality and larger file sizes.
+
+```bash
+python run.py --video-quality 18  # Default (high quality)
+python run.py --video-quality 23  # Medium quality
+python run.py --video-quality 28  # Lower quality, smaller file
+```
+
+<Note>
+- **Default:** 18 (visually lossless)
+- **Range:** 0-51 (0 = lossless, 51 = worst quality)
+- **Recommended:** 17-28 for most use cases
+</Note>
+
+## Media Preservation Flags
+
+### Keep FPS
+
+**`--keep-fps`**
+
+Maintain the original video's frame rate. Without this flag, output defaults to 30 FPS.
+
+```bash
+python run.py -s face.jpg -t video.mp4 --keep-fps
+```
+
+<Warning>
+Always use `--keep-fps` with `--keep-audio` to prevent audio sync issues.
+</Warning>
+
+### Keep Audio
+
+**`--keep-audio`**
+
+Preserve the original audio track from the target video.
+
+```bash
+python run.py -s face.jpg -t video.mp4 --keep-audio
+```
+
+<Note>
+This flag is **enabled by default**. Audio is automatically restored after video processing.
+</Note>
+
+### Keep Frames
+
+**`--keep-frames`**
+
+Prevent deletion of temporary frame files after processing completes.
+
+```bash
+python run.py -s face.jpg -t video.mp4 --keep-frames
+```
+
+Frames are stored in: `{target_directory}/temp/{target_name}/*.png`
+
+<Info>
+Useful for debugging or manual frame inspection. Can consume significant disk space for long videos.
+</Info>
+
+## Performance Configuration
+
+### Execution Providers
+
+**`--execution-provider {cpu,cuda,coreml,rocm,...} [...]`**
+
+Select hardware acceleration providers for ONNX Runtime. Multiple providers can be specified as fallbacks.
+
+```bash
+# CPU only (default)
+python run.py --execution-provider cpu
+
+# CUDA GPU acceleration
+python run.py --execution-provider cuda
+
+# Multiple providers (tries in order)
+python run.py --execution-provider cuda cpu
+```
+
+Available providers depend on your system and ONNX Runtime installation:
+- `cpu` - CPU execution (always available)
+- `cuda` - NVIDIA GPUs
+- `coreml` - Apple Silicon
+- `rocm` - AMD GPUs
+- `dml` - DirectML (Windows)
+
+<Tip>
+Run `python -c "import onnxruntime; print(onnxruntime.get_available_providers())"` to see available providers.
+</Tip>
+
+### Execution Threads
+
+**`--execution-threads THREADS`**
+
+Number of parallel threads for frame processing.
+
+```bash
+python run.py --execution-threads 8  # Default
+python run.py --execution-threads 4  # Reduce for lower memory usage
+python run.py --execution-threads 16 # Increase for faster processing
+```
+
+<Note>
+**Default values:**
+- CPU: 8 threads
+- CUDA/NVIDIA: 1 thread (optimal for GPU)
+- ROCm/AMD: 1 thread
+- DML/DirectML: 1 thread
+</Note>
+
+<Warning>
+Using `--execution-provider` sets `OMP_NUM_THREADS=1` for CUDA performance optimization.
+</Warning>
+
+### Max Memory
+
+**`--max-memory MAX_MEMORY`**
+
+Limit maximum RAM usage in gigabytes. Prevents system crashes on large videos.
+
+```bash
+python run.py --max-memory 16  # Default for Linux/Windows
+python run.py --max-memory 4   # Default for macOS
+python run.py --max-memory 8   # Custom limit
+```
+
+<AccordionGroup>
+  <Accordion title="How memory limiting works" icon="memory">
+    **macOS:** Uses virtual memory configuration (memory_limit * 1024^6)
+    
+    **Windows:** Uses `SetProcessWorkingSetSize` API
+    
+    **Linux:** Uses `resource.setrlimit` with RLIMIT_DATA
+    
+    Additionally, TensorFlow GPU memory is capped at 1024 MB to prevent memory leaks.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Setting memory too low may cause the process to crash or swap heavily. Monitor with `--keep-frames` to see memory usage in progress bars.
+</Warning>
+
+## Example Configurations
+
+### High Quality Output
+
+```bash
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --video-encoder libx265 \
+  --video-quality 15 \
+  --keep-fps \
+  --keep-audio \
+  --execution-provider cuda
+```
+
+### Fast Processing (Lower Quality)
+
+```bash
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --video-encoder libx264 \
+  --video-quality 28 \
+  --execution-threads 16 \
+  --execution-provider cuda
+```
+
+### Group Video with Enhancement
+
+```bash
+python run.py \
+  -s face.jpg \
+  -t group_video.mp4 \
+  -o output.mp4 \
+  --frame-processor face_swapper face_enhancer \
+  --many-faces \
+  --keep-fps \
+  --keep-audio
+```
+
+### Debug Mode
+
+```bash
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --keep-frames \
+  --execution-threads 1
+```
+
+## Environment Variables
+
+Based Roop automatically sets these environment variables:
+
+**`OMP_NUM_THREADS=1`**
+
+Set when using any execution provider. Doubles CUDA performance.
+
+**`TF_CPP_MIN_LOG_LEVEL=2`**
+
+Reduces TensorFlow logging noise (errors and warnings only).

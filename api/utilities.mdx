@@ -1,0 +1,741 @@
+---
+title: Utility Functions
+description: Video/image processing and file handling utilities for Based Roop
+---
+
+The `roop.utilities` module provides helper functions for video processing, frame extraction, file validation, and temporary file management.
+
+## Video Processing
+
+### detect_fps()
+
+Detects the frame rate of a video file.
+
+```python
+def detect_fps(target_path: str) -> float
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Path to the video file
+</ParamField>
+
+**Returns**
+
+<ResponseField name="fps" type="float">
+  Frame rate of the video, or `30.0` if detection fails
+</ResponseField>
+
+**Description**
+
+Uses `ffprobe` to extract the video's frame rate from the stream metadata.
+
+**Example**
+
+```python
+from roop.utilities import detect_fps
+
+fps = detect_fps('video.mp4')
+print(f"Video FPS: {fps}")  # Video FPS: 29.97
+```
+
+**Source**: `roop/utilities.py:41-49`
+
+---
+
+### extract_frames()
+
+Extracts all frames from a video to PNG images.
+
+```python
+def extract_frames(target_path: str) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Path to the video file to extract frames from
+</ParamField>
+
+**Description**
+
+Extracts frames to the temporary directory using FFmpeg:
+- Output format: PNG with `rgb24` pixel format
+- Naming pattern: `0001.png`, `0002.png`, etc.
+- Output directory: `{video_dir}/temp/{video_name}/`
+
+**Example**
+
+```python
+from roop.utilities import create_temp, extract_frames
+
+target = 'video.mp4'
+create_temp(target)
+extract_frames(target)
+print("Frames extracted")
+```
+
+**Source**: `roop/utilities.py:52-54`
+
+---
+
+### create_video()
+
+Creates a video from extracted frames.
+
+```python
+def create_video(target_path: str, fps: float = 30.0) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path (used to locate temp frames)
+</ParamField>
+
+<ParamField path="fps" type="float" default="30.0">
+  Frame rate for the output video
+</ParamField>
+
+**Description**
+
+Creates an MP4 video from PNG frames using FFmpeg:
+- Codec: From `roop.globals.video_encoder`
+- Quality: From `roop.globals.video_quality` (CRF)
+- Pixel format: `yuv420p`
+- Color space: BT.709 (converted from BT.601-6-625)
+
+**Example**
+
+```python
+from roop.utilities import create_video, detect_fps
+import roop.globals
+
+roop.globals.video_encoder = 'libx264'
+roop.globals.video_quality = 18
+
+target = 'video.mp4'
+fps = detect_fps(target)
+create_video(target, fps)
+print(f"Video created at {fps} fps")
+```
+
+**Source**: `roop/utilities.py:57-60`
+
+---
+
+### restore_audio()
+
+Restores audio from the original video to the output.
+
+```python
+def restore_audio(target_path: str, output_path: str) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path (source of audio)
+</ParamField>
+
+<ParamField path="output_path" type="string" required>
+  Final output video path
+</ParamField>
+
+**Description**
+
+Merges audio from the target video with processed video:
+- Copies video stream from temp output
+- Copies audio stream from target
+- Falls back to `move_temp()` if audio merge fails
+
+**Example**
+
+```python
+from roop.utilities import restore_audio
+
+restore_audio('original.mp4', 'output.mp4')
+print("Audio restored")
+```
+
+**Source**: `roop/utilities.py:63-67`
+
+---
+
+## Frame Management
+
+### get_temp_frame_paths()
+
+Returns paths to all extracted frame files.
+
+```python
+def get_temp_frame_paths(target_path: str) -> List[str]
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path
+</ParamField>
+
+**Returns**
+
+<ResponseField name="frame_paths" type="list[string]">
+  List of paths to PNG frame files
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import get_temp_frame_paths
+
+frames = get_temp_frame_paths('video.mp4')
+print(f"Found {len(frames)} frames")
+for frame_path in frames:
+    print(frame_path)
+# /path/to/temp/video/0001.png
+# /path/to/temp/video/0002.png
+# ...
+```
+
+**Source**: `roop/utilities.py:70-72`
+
+---
+
+## Path Utilities
+
+### get_temp_directory_path()
+
+Returns the temporary directory path for a video.
+
+```python
+def get_temp_directory_path(target_path: str) -> str
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video or image path
+</ParamField>
+
+**Returns**
+
+<ResponseField name="temp_path" type="string">
+  Path to temporary directory: `{video_dir}/temp/{video_name}/`
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import get_temp_directory_path
+
+temp_dir = get_temp_directory_path('/videos/clip.mp4')
+print(temp_dir)  # /videos/temp/clip/
+```
+
+**Source**: `roop/utilities.py:75-78`
+
+---
+
+### get_temp_output_path()
+
+Returns the temporary output video path.
+
+```python
+def get_temp_output_path(target_path: str) -> str
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path
+</ParamField>
+
+**Returns**
+
+<ResponseField name="temp_output" type="string">
+  Path to temporary output: `{temp_dir}/temp.mp4`
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import get_temp_output_path
+
+temp_output = get_temp_output_path('/videos/clip.mp4')
+print(temp_output)  # /videos/temp/clip/temp.mp4
+```
+
+**Source**: `roop/utilities.py:81-83`
+
+---
+
+### normalize_output_path()
+
+Normalizes the output path based on source and target paths.
+
+```python
+def normalize_output_path(source_path: str, target_path: str, output_path: str) -> Any
+```
+
+**Parameters**
+
+<ParamField path="source_path" type="string" required>
+  Path to source image
+</ParamField>
+
+<ParamField path="target_path" type="string" required>
+  Path to target image or video
+</ParamField>
+
+<ParamField path="output_path" type="string" required>
+  User-specified output path (file or directory)
+</ParamField>
+
+**Returns**
+
+<ResponseField name="normalized_path" type="string">
+  Normalized output path
+</ResponseField>
+
+**Behavior**
+
+If `output_path` is a directory, generates filename:
+```
+{output_dir}/{source_name}-{target_name}.{target_ext}
+```
+
+**Example**
+
+```python
+from roop.utilities import normalize_output_path
+
+# Output to specific file
+path = normalize_output_path('face.jpg', 'video.mp4', 'result.mp4')
+print(path)  # result.mp4
+
+# Output to directory
+path = normalize_output_path('face.jpg', 'video.mp4', '/output/')
+print(path)  # /output/face-video.mp4
+```
+
+**Source**: `roop/utilities.py:86-94`
+
+---
+
+### resolve_relative_path()
+
+Resolves a relative path from the roop module directory.
+
+```python
+def resolve_relative_path(path: str) -> str
+```
+
+**Parameters**
+
+<ParamField path="path" type="string" required>
+  Relative path from roop module
+</ParamField>
+
+**Returns**
+
+<ResponseField name="absolute_path" type="string">
+  Absolute path resolved from module directory
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import resolve_relative_path
+
+model_path = resolve_relative_path('../models/inswapper.onnx')
+print(model_path)  # /path/to/roop/models/inswapper.onnx
+```
+
+**Source**: `roop/utilities.py:149-150`
+
+---
+
+## Temporary File Management
+
+### create_temp()
+
+Creates the temporary directory for processing.
+
+```python
+def create_temp(target_path: str) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path
+</ParamField>
+
+**Description**
+
+Creates the temporary directory structure with parent directories.
+
+**Example**
+
+```python
+from roop.utilities import create_temp
+
+create_temp('video.mp4')
+print("Temp directory created")
+```
+
+**Source**: `roop/utilities.py:97-99`
+
+---
+
+### move_temp()
+
+Moves the temporary output to the final output location.
+
+```python
+def move_temp(target_path: str, output_path: str) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path
+</ParamField>
+
+<ParamField path="output_path" type="string" required>
+  Final output path
+</ParamField>
+
+**Description**
+
+Moves `temp.mp4` to the final output location, overwriting if exists.
+
+**Example**
+
+```python
+from roop.utilities import move_temp
+
+move_temp('video.mp4', 'output.mp4')
+print("Output moved to final location")
+```
+
+**Source**: `roop/utilities.py:102-107`
+
+---
+
+### clean_temp()
+
+Cleans up temporary files and directories.
+
+```python
+def clean_temp(target_path: str) -> None
+```
+
+**Parameters**
+
+<ParamField path="target_path" type="string" required>
+  Original target video path
+</ParamField>
+
+**Description**
+
+Removes temporary directory and frames unless `roop.globals.keep_frames` is `True`.
+
+**Example**
+
+```python
+import roop.globals
+from roop.utilities import clean_temp
+
+roop.globals.keep_frames = False
+clean_temp('video.mp4')
+print("Temporary files cleaned")
+```
+
+**Source**: `roop/utilities.py:110-116`
+
+---
+
+## File Type Validation
+
+### has_image_extension()
+
+Checks if a path has an image file extension.
+
+```python
+def has_image_extension(image_path: str) -> bool
+```
+
+**Parameters**
+
+<ParamField path="image_path" type="string" required>
+  Path to check
+</ParamField>
+
+**Returns**
+
+<ResponseField name="is_image_ext" type="bool">
+  `True` if path ends with `.png`, `.jpg`, `.jpeg`, or `.webp`
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import has_image_extension
+
+print(has_image_extension('photo.jpg'))    # True
+print(has_image_extension('video.mp4'))    # False
+print(has_image_extension('image.PNG'))    # True (case-insensitive)
+```
+
+**Source**: `roop/utilities.py:119-120`
+
+---
+
+### is_image()
+
+Checks if a file is a valid image by MIME type.
+
+```python
+def is_image(image_path: str) -> bool
+```
+
+**Parameters**
+
+<ParamField path="image_path" type="string" required>
+  Path to file to check
+</ParamField>
+
+**Returns**
+
+<ResponseField name="valid_image" type="bool">
+  `True` if file exists and has image MIME type
+</ResponseField>
+
+**Description**
+
+Uses `mimetypes.guess_type()` to validate the file is a real image.
+
+**Example**
+
+```python
+from roop.utilities import is_image
+
+if is_image('output.jpg'):
+    print("Image created successfully")
+else:
+    print("Image creation failed")
+```
+
+**Source**: `roop/utilities.py:123-127`
+
+---
+
+### is_video()
+
+Checks if a file is a valid video by MIME type.
+
+```python
+def is_video(video_path: str) -> bool
+```
+
+**Parameters**
+
+<ParamField path="video_path" type="string" required>
+  Path to file to check
+</ParamField>
+
+**Returns**
+
+<ResponseField name="valid_video" type="bool">
+  `True` if file exists and has video MIME type
+</ResponseField>
+
+**Example**
+
+```python
+from roop.utilities import is_video
+
+if is_video('output.mp4'):
+    print("Video created successfully")
+else:
+    print("Video creation failed")
+```
+
+**Source**: `roop/utilities.py:130-134`
+
+---
+
+## FFmpeg Utilities
+
+### run_ffmpeg()
+
+Executes FFmpeg with specified arguments.
+
+```python
+def run_ffmpeg(args: List[str]) -> bool
+```
+
+**Parameters**
+
+<ParamField path="args" type="list[string]" required>
+  FFmpeg command-line arguments (excluding 'ffmpeg')
+</ParamField>
+
+**Returns**
+
+<ResponseField name="success" type="bool">
+  `True` if FFmpeg command succeeded, `False` otherwise
+</ResponseField>
+
+**Description**
+
+Runs FFmpeg with:
+- Hardware acceleration enabled (`-hwaccel auto`)
+- Log level from `roop.globals.log_level`
+- Hidden banner
+
+**Example**
+
+```python
+from roop.utilities import run_ffmpeg
+import roop.globals
+
+roop.globals.log_level = 'error'
+
+success = run_ffmpeg([
+    '-i', 'input.mp4',
+    '-vf', 'scale=1280:720',
+    '-y', 'output.mp4'
+])
+
+if success:
+    print("Video processed")
+```
+
+**Source**: `roop/utilities.py:23-38`
+
+---
+
+## Download Utilities
+
+### conditional_download()
+
+Downloads files if they don't already exist locally.
+
+```python
+def conditional_download(download_directory_path: str, urls: List[str]) -> None
+```
+
+**Parameters**
+
+<ParamField path="download_directory_path" type="string" required>
+  Directory to download files into
+</ParamField>
+
+<ParamField path="urls" type="list[string]" required>
+  List of URLs to download
+</ParamField>
+
+**Description**
+
+Downloads each URL to the specified directory:
+- Creates directory if it doesn't exist
+- Skips files that already exist
+- Shows progress bar with `tqdm`
+
+**Example**
+
+```python
+from roop.utilities import conditional_download
+
+models = [
+    'https://example.com/model1.onnx',
+    'https://example.com/model2.onnx'
+]
+
+conditional_download('./models', models)
+print("Models downloaded")
+```
+
+**Source**: `roop/utilities.py:137-146`
+
+---
+
+## Module Constants
+
+### TEMP_FILE
+
+Filename for temporary output video.
+
+```python
+TEMP_FILE: str = 'temp.mp4'
+```
+
+**Source**: `roop/utilities.py:15`
+
+---
+
+### TEMP_DIRECTORY
+
+Name of temporary directory.
+
+```python
+TEMP_DIRECTORY: str = 'temp'
+```
+
+**Source**: `roop/utilities.py:16`
+
+---
+
+## Complete Processing Example
+
+```python
+import roop.globals
+from roop.utilities import (
+    create_temp,
+    extract_frames,
+    get_temp_frame_paths,
+    detect_fps,
+    create_video,
+    restore_audio,
+    move_temp,
+    clean_temp,
+    is_video
+)
+
+# Configure
+roop.globals.video_encoder = 'libx264'
+roop.globals.video_quality = 18
+roop.globals.keep_fps = True
+roop.globals.keep_audio = True
+roop.globals.keep_frames = False
+
+target = 'input.mp4'
+output = 'output.mp4'
+
+# Process video
+create_temp(target)
+extract_frames(target)
+
+frames = get_temp_frame_paths(target)
+print(f"Processing {len(frames)} frames")
+
+# ... process frames here ...
+
+# Create output
+fps = detect_fps(target) if roop.globals.keep_fps else 30.0
+create_video(target, fps)
+
+if roop.globals.keep_audio:
+    restore_audio(target, output)
+else:
+    move_temp(target, output)
+
+clean_temp(target)
+
+if is_video(output):
+    print("Processing complete!")
+```

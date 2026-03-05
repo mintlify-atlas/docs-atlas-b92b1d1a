@@ -1,0 +1,252 @@
+---
+title: 'CLI Options'
+description: 'Complete command-line interface reference for Based Roop'
+---
+
+Based Roop can be run in CLI mode by providing the `-s/--source` argument. This page documents all available command-line options.
+
+## Usage
+
+```bash
+python run.py [OPTIONS]
+```
+
+When you provide source, target, or output paths, Based Roop runs in headless CLI mode. Otherwise, it launches the GUI.
+
+## Input/Output Options
+
+<ParamField path="-s, --source" type="string">
+  Select a source image containing the face you want to use for swapping.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 -o output.mp4
+  ```
+</ParamField>
+
+<ParamField path="-t, --target" type="string">
+  Select a target image or video where you want to replace the face.
+  
+  **Example:**
+  ```bash
+  python run.py -s source.png -t target_video.mp4
+  ```
+</ParamField>
+
+<ParamField path="-o, --output" type="string">
+  Select output file or directory for the processed result.
+  
+  If not specified, the output path will be automatically generated based on source and target filenames.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 -o results/swapped.mp4
+  ```
+</ParamField>
+
+## Processing Options
+
+<ParamField path="--frame-processor" type="string[]" default="['face_swapper']">
+  Frame processors to apply to the video or image. Multiple processors can be specified.
+  
+  **Choices:** `face_swapper`, `face_enhancer`, and others depending on installed processors
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --frame-processor face_swapper face_enhancer
+  ```
+</ParamField>
+
+<ParamField path="--many-faces" type="boolean" default="false">
+  Process every face detected in the target media instead of just the primary face.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t group_video.mp4 --many-faces
+  ```
+</ParamField>
+
+## Video Processing Options
+
+<ParamField path="--keep-fps" type="boolean" default="false">
+  Keep the original frame rate (fps) of the target video.
+  
+  When disabled, the output video will use 30 fps by default.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --keep-fps
+  ```
+</ParamField>
+
+<ParamField path="--keep-audio" type="boolean" default="true">
+  Keep the original audio from the target video.
+  
+  Audio restoration works best when used with `--keep-fps`.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --keep-fps --keep-audio
+  ```
+</ParamField>
+
+<ParamField path="--keep-frames" type="boolean" default="false">
+  Keep temporary frames after processing instead of deleting them.
+  
+  Useful for debugging or manual frame inspection.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --keep-frames
+  ```
+</ParamField>
+
+<ParamField path="--video-encoder" type="string" default="libx264">
+  Adjust the output video encoder used by FFmpeg.
+  
+  **Choices:**
+  - `libx264` - H.264 codec (widely compatible, good quality)
+  - `libx265` - H.265/HEVC codec (better compression, slower encoding)
+  - `libvpx-vp9` - VP9 codec (open format, good for web)
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --video-encoder libx265
+  ```
+</ParamField>
+
+<ParamField path="--video-quality" type="integer" default="18">
+  Adjust output video quality using the CRF (Constant Rate Factor) scale.
+  
+  **Range:** 0-51
+  - Lower values = higher quality and larger file size
+  - Higher values = lower quality and smaller file size
+  - 18 is considered visually lossless
+  - 23 is a good balance for most use cases
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --video-quality 23
+  ```
+</ParamField>
+
+## Performance Options
+
+<ParamField path="--max-memory" type="integer">
+  Maximum amount of RAM in GB that Based Roop can use.
+  
+  **Default:**
+  - macOS: 4 GB
+  - Other systems: 16 GB
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --max-memory 8
+  ```
+</ParamField>
+
+<ParamField path="--execution-provider" type="string[]" default="['cpu']">
+  Execution provider(s) for running the AI models. Multiple providers can be specified for fallback.
+  
+  **Available choices depend on your system:**
+  - `cpu` - CPU-based processing (always available)
+  - `cuda` - NVIDIA GPU acceleration (requires CUDA setup)
+  - `coreml` - Apple Silicon acceleration (macOS only)
+  - `dml` - DirectML acceleration (Windows only)
+  - `rocm` - AMD GPU acceleration (requires ROCm setup)
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --execution-provider cuda cpu
+  ```
+</ParamField>
+
+<ParamField path="--execution-threads" type="integer">
+  Number of execution threads for processing.
+  
+  **Default:**
+  - DML provider: 1
+  - ROCm provider: 1
+  - Other providers: 8
+  
+  More threads can improve performance but increase memory usage.
+  
+  **Example:**
+  ```bash
+  python run.py -s face.jpg -t video.mp4 --execution-threads 4
+  ```
+</ParamField>
+
+## Other Options
+
+<ParamField path="-h, --help">
+  Show help message and exit.
+  
+  **Example:**
+  ```bash
+  python run.py --help
+  ```
+</ParamField>
+
+<ParamField path="-v, --version">
+  Show program version number and exit.
+  
+  **Example:**
+  ```bash
+  python run.py --version
+  ```
+</ParamField>
+
+## Common Usage Examples
+
+### Basic Face Swap (Image to Image)
+
+```bash
+python run.py -s source_face.jpg -t target_image.jpg -o output.jpg
+```
+
+### Face Swap with Enhancement
+
+```bash
+python run.py -s face.jpg -t video.mp4 -o output.mp4 \
+  --frame-processor face_swapper face_enhancer
+```
+
+### High-Quality Video Processing
+
+```bash
+python run.py -s face.jpg -t video.mp4 -o output.mp4 \
+  --keep-fps --keep-audio \
+  --video-encoder libx265 --video-quality 18
+```
+
+### GPU-Accelerated Processing
+
+```bash
+python run.py -s face.jpg -t video.mp4 -o output.mp4 \
+  --execution-provider cuda \
+  --execution-threads 4 \
+  --max-memory 8
+```
+
+### Process Multiple Faces
+
+```bash
+python run.py -s face.jpg -t group_video.mp4 -o output.mp4 \
+  --many-faces --keep-fps --keep-audio
+```
+
+### Low Memory Processing
+
+```bash
+python run.py -s face.jpg -t video.mp4 -o output.mp4 \
+  --max-memory 4 --execution-threads 2
+```
+
+## Notes
+
+- When running in CLI mode, the program will download required models (~300MB) on first run
+- Providing `-s/--source` argument automatically enables headless (CLI) mode
+- Without source/target/output arguments, the GUI will launch instead
+- For GPU acceleration, follow the [acceleration setup guide](https://github.com/s0md3v/roop/wiki/2.-Acceleration)
+- FFmpeg must be installed and available in your system PATH

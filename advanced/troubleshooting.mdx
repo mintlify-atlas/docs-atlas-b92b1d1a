@@ -1,0 +1,866 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for Based Roop installation and usage
+---
+
+This guide covers common problems you may encounter when installing or using Based Roop, along with their solutions.
+
+## Installation Issues
+
+<AccordionGroup>
+  <Accordion title="Python version not supported" icon="python" defaultOpen>
+    **Error message:**
+    ```
+    Python version is not supported - please upgrade to 3.9 or higher.
+    ```
+    
+    **Cause:**
+    
+    Based Roop requires Python 3.9 or higher. This check is performed in `roop/core.py:120-122`:
+    ```python
+    if sys.version_info < (3, 9):
+        update_status('Python version is not supported - please upgrade to 3.9 or higher.')
+        return False
+    ```
+    
+    **Solution:**
+    
+    Install Python 3.9 or higher:
+    
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install python3.9 python3.9-venv python3.9-dev
+    ```
+    
+    ```bash macOS (Homebrew)
+    brew install python@3.9
+    ```
+    
+    ```bash Windows
+    # Download from python.org
+    # https://www.python.org/downloads/
+    ```
+    </CodeGroup>
+    
+    Verify installation:
+    ```bash
+    python --version
+    # or
+    python3.9 --version
+    ```
+  </Accordion>
+  
+  <Accordion title="FFmpeg is not installed" icon="film">
+    **Error message:**
+    ```
+    ffmpeg is not installed.
+    ```
+    
+    **Cause:**
+    
+    FFmpeg is required for video processing. The check is in `roop/core.py:123-125`:
+    ```python
+    if not shutil.which('ffmpeg'):
+        update_status('ffmpeg is not installed.')
+        return False
+    ```
+    
+    **Solution:**
+    
+    Install FFmpeg:
+    
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install ffmpeg
+    ```
+    
+    ```bash macOS (Homebrew)
+    brew install ffmpeg
+    ```
+    
+    ```bash Windows (Chocolatey)
+    choco install ffmpeg
+    ```
+    
+    ```bash Windows (Manual)
+    # Download from https://ffmpeg.org/download.html
+    # Add to PATH environment variable
+    ```
+    </CodeGroup>
+    
+    Verify installation:
+    ```bash
+    ffmpeg -version
+    ```
+  </Accordion>
+  
+  <Accordion title="ONNX Runtime installation fails" icon="download">
+    **Error message:**
+    ```
+    ERROR: Could not find a version that satisfies the requirement onnxruntime-gpu
+    ```
+    
+    **Cause:**
+    
+    Incompatible Python version or platform for GPU-accelerated ONNX Runtime.
+    
+    **Solution:**
+    
+    1. First try CPU-only version:
+    ```bash
+    pip install onnxruntime
+    ```
+    
+    2. For GPU support, check compatibility:
+    - NVIDIA GPUs: Requires CUDA 11.x or 12.x
+    - AMD GPUs: Requires ROCm 5.x
+    - Apple Silicon: CoreML is built-in
+    
+    3. Install GPU version:
+    <CodeGroup>
+    ```bash NVIDIA (CUDA)
+    pip install onnxruntime-gpu
+    ```
+    
+    ```bash AMD (ROCm)
+    pip install onnxruntime-rocm
+    ```
+    
+    ```bash DirectML (Windows)
+    pip install onnxruntime-directml
+    ```
+    </CodeGroup>
+  </Accordion>
+  
+  <Accordion title="TensorFlow installation errors" icon="cube">
+    **Error message:**
+    ```
+    ERROR: Could not find a version that satisfies the requirement tensorflow
+    ```
+    
+    **Cause:**
+    
+    Platform or Python version incompatibility with TensorFlow.
+    
+    **Solution:**
+    
+    1. Check Python version (3.9-3.11 recommended for TensorFlow 2.x)
+    
+    2. Install appropriate version:
+    ```bash
+    # CPU-only
+    pip install tensorflow
+    
+    # GPU (NVIDIA)
+    pip install tensorflow[and-cuda]
+    ```
+    
+    3. For Apple Silicon:
+    ```bash
+    pip install tensorflow-macos tensorflow-metal
+    ```
+  </Accordion>
+  
+  <Accordion title="InsightFace model download fails" icon="face-smile">
+    **Error message:**
+    ```
+    Error downloading InsightFace models
+    ```
+    
+    **Cause:**
+    
+    Network issues or SSL certificate problems when downloading face detection models (~300MB).
+    
+    **Solution:**
+    
+    1. macOS SSL fix (already handled in `roop/utilities.py:18-20`):
+    ```python
+    if platform.system().lower() == 'darwin':
+        ssl._create_default_https_context = ssl._create_unverified_context
+    ```
+    
+    2. Manual download:
+    - Models are downloaded to `~/.insightface/models/buffalo_l/`
+    - Check internet connection and retry
+    - Use VPN if regional restrictions apply
+    
+    3. Check disk space (need ~500MB free)
+  </Accordion>
+</AccordionGroup>
+
+## GPU Detection Issues
+
+<AccordionGroup>
+  <Accordion title="GPU not detected (NVIDIA)" icon="microchip">
+    **Symptoms:**
+    ```
+    execution_providers=['CPUExecutionProvider']
+    ```
+    Progress bar shows CPU execution instead of CUDA.
+    
+    **Diagnosis:**
+    
+    Check available providers:
+    ```bash
+    python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
+    ```
+    
+    Expected: `['CUDAExecutionProvider', 'CPUExecutionProvider']`
+    
+    **Solutions:**
+    
+    <Steps>
+      <Step title="Verify GPU is working">
+        ```bash
+        nvidia-smi
+        ```
+        Should show GPU info and driver version.
+      </Step>
+      
+      <Step title="Check CUDA installation">
+        ```bash
+        nvcc --version
+        ```
+        ONNX Runtime GPU requires CUDA 11.x or 12.x.
+      </Step>
+      
+      <Step title="Install correct ONNX Runtime">
+        ```bash
+        pip uninstall onnxruntime onnxruntime-gpu
+        pip install onnxruntime-gpu
+        ```
+      </Step>
+      
+      <Step title="Specify CUDA provider explicitly">
+        ```bash
+        python run.py --execution-provider cuda
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="GPU out of memory" icon="memory">
+    **Error message:**
+    ```
+    CUDA out of memory
+    ```
+    or
+    ```
+    Failed to allocate memory
+    ```
+    
+    **Cause:**
+    
+    Video resolution or batch size exceeds GPU VRAM capacity.
+    
+    **Solutions:**
+    
+    1. Reduce execution threads (if > 1):
+    ```bash
+    python run.py --execution-threads 1 --execution-provider cuda
+    ```
+    
+    2. Clear GPU cache:
+    ```python
+    # Based Roop does this automatically in roop/core.py:114-116
+    if 'CUDAExecutionProvider' in roop.globals.execution_providers:
+        torch.cuda.empty_cache()
+    ```
+    
+    3. Reduce video resolution before processing:
+    ```bash
+    ffmpeg -i input.mp4 -vf scale=1280:720 input_720p.mp4
+    ```
+    
+    4. Process on CPU instead:
+    ```bash
+    python run.py --execution-provider cpu --execution-threads 4
+    ```
+  </Accordion>
+  
+  <Accordion title="Apple Silicon GPU not working" icon="apple">
+    **Symptoms:**
+    
+    Slow performance on M1/M2/M3 Mac.
+    
+    **Diagnosis:**
+    
+    Check if CoreML is available:
+    ```bash
+    python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
+    ```
+    
+    **Solution:**
+    
+    1. Enable CoreML provider:
+    ```bash
+    python run.py --execution-provider coreml
+    ```
+    
+    2. Adjust threads for unified memory:
+    ```bash
+    python run.py --execution-provider coreml --execution-threads 4 --max-memory 8
+    ```
+    
+    3. Install TensorFlow for Apple Silicon:
+    ```bash
+    pip install tensorflow-macos tensorflow-metal
+    ```
+  </Accordion>
+  
+  <Accordion title="AMD GPU (ROCm) issues" icon="microchip">
+    **Symptoms:**
+    
+    ROCm execution provider not available or crashes.
+    
+    **Solution:**
+    
+    1. Verify ROCm installation:
+    ```bash
+    rocm-smi
+    ```
+    
+    2. Install ROCm-enabled ONNX Runtime:
+    ```bash
+    pip install onnxruntime-rocm
+    ```
+    
+    3. Note: PyTorch is disabled when using ROCm (`roop/core.py:27-28`):
+    ```python
+    if 'ROCMExecutionProvider' in roop.globals.execution_providers:
+        del torch
+    ```
+    
+    4. Use with proper settings:
+    ```bash
+    python run.py --execution-provider rocm --execution-threads 1
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Face Detection Issues
+
+<AccordionGroup>
+  <Accordion title="No face detected in source image" icon="face-frown">
+    **Symptoms:**
+    
+    Processing fails or no face swap occurs.
+    
+    **Cause:**
+    
+    Face detection model (`buffalo_l`) cannot detect faces in the source image.
+    
+    **Solutions:**
+    
+    1. **Check image quality:**
+       - Face should be clearly visible
+       - Avoid extreme angles or occlusions
+       - Minimum resolution: 256x256
+    
+    2. **Verify face is detectable:**
+       - Face should be front-facing or near-frontal
+       - Good lighting conditions
+       - Not heavily obscured (sunglasses, masks)
+    
+    3. **Test with different source image:**
+       - Use a clear, well-lit portrait
+       - Face should occupy significant portion of frame
+    
+    4. **Check detection settings:**
+       From `roop/face_analyser.py:18`:
+       ```python
+       FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
+       ```
+       Detection size is fixed at 640x640.
+  </Accordion>
+  
+  <Accordion title="Wrong face selected in multi-face video" icon="users">
+    **Symptoms:**
+    
+    In videos with multiple people, the wrong face gets swapped.
+    
+    **Cause:**
+    
+    By default, only the leftmost face is processed (`roop/face_analyser.py:22-27`):
+    ```python
+    def get_one_face(frame):
+        face = get_face_analyser().get(frame)
+        return min(face, key=lambda x: x.bbox[0])  # Leftmost face
+    ```
+    
+    **Solution:**
+    
+    Use `--many-faces` to process all detected faces:
+    ```bash
+    python run.py -s face.jpg -t group_video.mp4 --many-faces
+    ```
+    
+    This uses `get_many_faces()` instead, which processes all detected faces.
+  </Accordion>
+  
+  <Accordion title="Face detection is slow" icon="clock">
+    **Symptoms:**
+    
+    Very low frame processing rate.
+    
+    **Cause:**
+    
+    Face detection runs on every frame. High resolution or many faces slow down processing.
+    
+    **Solutions:**
+    
+    1. Enable GPU acceleration:
+    ```bash
+    python run.py --execution-provider cuda
+    ```
+    
+    2. Reduce video resolution:
+    ```bash
+    ffmpeg -i input_4k.mp4 -vf scale=1920:1080 input_1080p.mp4
+    python run.py -s face.jpg -t input_1080p.mp4
+    ```
+    
+    3. If only one face needs swapping, don't use `--many-faces`
+  </Accordion>
+  
+  <Accordion title="Face swap quality is poor" icon="face-sad-tear">
+    **Symptoms:**
+    
+    Swapped face looks unnatural or low quality.
+    
+    **Solutions:**
+    
+    1. Use face enhancement:
+    ```bash
+    python run.py --frame-processor face_swapper face_enhancer
+    ```
+    
+    2. Use higher quality source image:
+       - High resolution (1024x1024 or higher)
+       - Good lighting
+       - Clear facial features
+    
+    3. Ensure target video quality is good:
+    ```bash
+    python run.py --video-quality 15 --keep-fps
+    ```
+    
+    4. Check execution provider:
+       - GPU providers generally give better quality
+       - Ensure CUDA/ROCm is being used
+  </Accordion>
+</AccordionGroup>
+
+## Video Processing Errors
+
+<AccordionGroup>
+  <Accordion title="FFmpeg encoding failed" icon="video">
+    **Symptoms:**
+    
+    Processing completes but final video creation fails.
+    
+    **Cause:**
+    
+    FFmpeg encoding error during video creation (`roop/utilities.py:57-60`).
+    
+    **Solutions:**
+    
+    1. Check FFmpeg is working:
+    ```bash
+    ffmpeg -version
+    ```
+    
+    2. Try different encoder:
+    ```bash
+    # If libx265 fails
+    python run.py --video-encoder libx264
+    ```
+    
+    3. Check disk space:
+    ```bash
+    df -h .
+    ```
+    Output video can be large (depends on quality and length).
+    
+    4. Verify temporary frames exist:
+    ```bash
+    python run.py --keep-frames
+    # Check temp/{video_name}/ directory
+    ```
+  </Accordion>
+  
+  <Accordion title="Audio sync issues" icon="volume">
+    **Symptoms:**
+    
+    Audio and video are out of sync in output.
+    
+    **Cause:**
+    
+    FPS mismatch when `--keep-fps` is not used. Warning in `roop/core.py:176-177`:
+    ```python
+    else:
+        update_status('Restoring audio might cause issues as fps are not kept...')
+    ```
+    
+    **Solution:**
+    
+    Always use `--keep-fps` with `--keep-audio`:
+    ```bash
+    python run.py -s face.jpg -t video.mp4 --keep-fps --keep-audio
+    ```
+  </Accordion>
+  
+  <Accordion title="Output video has no audio" icon="volume-xmark">
+    **Symptoms:**
+    
+    Output video is silent.
+    
+    **Cause:**
+    
+    1. `--keep-audio` not specified (though it defaults to True)
+    2. Source video has no audio track
+    3. Audio restoration failed
+    
+    **Solution:**
+    
+    1. Explicitly enable audio preservation:
+    ```bash
+    python run.py -s face.jpg -t video.mp4 --keep-audio
+    ```
+    
+    2. Check source video has audio:
+    ```bash
+    ffprobe -v error -select_streams a:0 -show_entries stream=codec_name video.mp4
+    ```
+    
+    3. Check audio restoration (from `roop/utilities.py:63-67`):
+    ```python
+    run_ffmpeg(['-i', temp_output_path, '-i', target_path, 
+                '-c:v', 'copy', '-map', '0:v:0', '-map', '1:a:0', 
+                '-y', output_path])
+    ```
+    
+    If this fails, video is created without audio.
+  </Accordion>
+  
+  <Accordion title="Processing to video failed" icon="circle-xmark">
+    **Error message:**
+    ```
+    Processing to video failed!
+    ```
+    
+    **Cause:**
+    
+    Final video creation or validation failed (`roop/core.py:183-186`).
+    
+    **Diagnosis:**
+    
+    1. Keep frames to inspect:
+    ```bash
+    python run.py --keep-frames
+    ```
+    
+    2. Check temp directory:
+    ```bash
+    ls -la temp/{video_name}/
+    ```
+    Should contain PNG frames and temp.mp4.
+    
+    **Solutions:**
+    
+    1. Verify frame extraction worked:
+    ```bash
+    # Manually test
+    ffmpeg -i input.mp4 -pix_fmt rgb24 test_%04d.png
+    ```
+    
+    2. Check video validation (`roop/utilities.py:130-134`):
+    ```python
+    def is_video(video_path):
+        mimetype, _ = mimetypes.guess_type(video_path)
+        return bool(mimetype and mimetype.startswith('video/'))
+    ```
+    
+    3. Try simpler settings:
+    ```bash
+    python run.py -s face.jpg -t video.mp4 -o test.mp4 \
+      --video-encoder libx264 --video-quality 23
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Memory Issues
+
+<AccordionGroup>
+  <Accordion title="System runs out of RAM" icon="memory">
+    **Symptoms:**
+    
+    Process killed or system becomes unresponsive.
+    
+    **Cause:**
+    
+    Memory usage exceeds available RAM, especially with:
+    - High resolution videos
+    - Many execution threads
+    - Long videos
+    
+    **Solutions:**
+    
+    1. Set memory limit:
+    ```bash
+    python run.py --max-memory 8
+    ```
+    
+    2. Reduce execution threads:
+    ```bash
+    python run.py --execution-threads 2
+    ```
+    
+    3. Monitor memory usage in progress bar:
+    ```
+    memory_usage=03.47GB
+    ```
+    
+    4. Process shorter segments:
+    ```bash
+    # Split video first
+    ffmpeg -i long_video.mp4 -t 00:02:00 segment1.mp4
+    ffmpeg -i long_video.mp4 -ss 00:02:00 -t 00:02:00 segment2.mp4
+    ```
+  </Accordion>
+  
+  <Accordion title="Disk space full during processing" icon="hard-drive">
+    **Symptoms:**
+    
+    ```
+    No space left on device
+    ```
+    
+    **Cause:**
+    
+    Temporary frames consume significant disk space. A 10-minute 1080p video can extract to 5-10 GB of PNG frames.
+    
+    **Solutions:**
+    
+    1. Check available space:
+    ```bash
+    df -h .
+    ```
+    
+    2. Clear old temp directories:
+    ```bash
+    rm -rf temp/
+    ```
+    
+    3. Use a different temp location with more space:
+    ```bash
+    # Temp files are created relative to target video location
+    # Process videos from a drive with more space
+    ```
+    
+    4. Don't use `--keep-frames` (frames are auto-deleted):
+    ```python
+    # roop/utilities.py:110-116
+    def clean_temp(target_path):
+        if not roop.globals.keep_frames and os.is dir(temp_directory_path):
+            shutil.rmtree(temp_directory_path)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Runtime Errors
+
+<AccordionGroup>
+  <Accordion title="Frame processor crashed" icon="bomb">
+    **Error message:**
+    ```
+    Frame processor face_swapper crashed.
+    ```
+    or
+    ```
+    Frame processor face_enhancer crashed.
+    ```
+    
+    **Cause:**
+    
+    Module import or initialization failed (`roop/processors/frame/core.py:24-32`).
+    
+    **Solutions:**
+    
+    1. Verify frame processor name:
+    ```bash
+    # Valid options
+    --frame-processor face_swapper
+    --frame-processor face_enhancer
+    --frame-processor face_swapper face_enhancer
+    ```
+    
+    2. Check dependencies are installed:
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    3. Test with basic face swapper only:
+    ```bash
+    python run.py --frame-processor face_swapper
+    ```
+  </Accordion>
+  
+  <Accordion title="Model download errors" icon="download">
+    **Symptoms:**
+    
+    First run fails downloading InsightFace models (~300MB).
+    
+    **Solution:**
+    
+    1. Check internet connection
+    
+    2. For macOS, SSL fix is automatic (`roop/utilities.py:18-20`)
+    
+    3. Check `~/.insightface/models/` directory:
+    ```bash
+    ls -la ~/.insightface/models/buffalo_l/
+    ```
+    
+    Should contain .onnx model files.
+    
+    4. Manually clear and retry:
+    ```bash
+    rm -rf ~/.insightface/models/buffalo_l/
+    python run.py
+    ```
+  </Accordion>
+  
+  <Accordion title="Permission denied errors" icon="lock">
+    **Error message:**
+    ```
+    PermissionError: [Errno 13] Permission denied
+    ```
+    
+    **Cause:**
+    
+    Insufficient permissions for:
+    - Output directory
+    - Temp directory creation
+    - Model cache directory
+    
+    **Solutions:**
+    
+    1. Check output directory permissions:
+    ```bash
+    ls -la output_directory/
+    chmod 755 output_directory/
+    ```
+    
+    2. Ensure write access to current directory (temp files)
+    
+    3. Check model directory:
+    ```bash
+    chmod -R 755 ~/.insightface/
+    ```
+    
+    4. Run with proper user permissions (don't use root/sudo)
+  </Accordion>
+</AccordionGroup>
+
+## Performance Problems
+
+For detailed performance optimization, see the [Performance Tuning](/advanced/performance-tuning) guide.
+
+<AccordionGroup>
+  <Accordion title="Processing is very slow" icon="turtle">
+    **Quick fixes:**
+    
+    1. Enable GPU:
+    ```bash
+    python run.py --execution-provider cuda
+    ```
+    
+    2. Check execution provider in progress bar:
+    ```
+    execution_providers=['CUDAExecutionProvider']  # Good
+    execution_providers=['CPUExecutionProvider']   # Slow
+    ```
+    
+    3. Adjust threads:
+    ```bash
+    # For GPU
+    python run.py --execution-threads 1 --execution-provider cuda
+    
+    # For CPU
+    python run.py --execution-threads 8 --execution-provider cpu
+    ```
+    
+    4. Reduce quality for testing:
+    ```bash
+    python run.py --video-quality 28 --video-encoder libx264
+    ```
+  </Accordion>
+  
+  <Accordion title="High CPU usage even with GPU" icon="microchip">
+    **Cause:**
+    
+    Too many execution threads compete with GPU processing.
+    
+    **Solution:**
+    
+    For GPU execution, always use 1 thread:
+    ```bash
+    python run.py --execution-provider cuda --execution-threads 1
+    ```
+    
+    This is set automatically when using `--execution-provider` (`roop/core.py:87-90`):
+    ```python
+    def suggest_execution_threads():
+        if 'DmlExecutionProvider' in roop.globals.execution_providers:
+            return 1
+        return 1 if 'ROCMExecutionProvider' in roop.globals.execution_providers else 8
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+If you're still experiencing issues:
+
+<Steps>
+  <Step title="Check system requirements">
+    - Python 3.9+
+    - FFmpeg installed
+    - Sufficient RAM (4GB minimum, 16GB recommended)
+    - Disk space for temporary frames
+  </Step>
+  
+  <Step title="Run with verbose output">
+    Check progress bar for:
+    - `execution_providers` (should show GPU if available)
+    - `execution_threads` (1 for GPU, 4-8 for CPU)
+    - `memory_usage` (watch for excessive usage)
+  </Step>
+  
+  <Step title="Test with minimal settings">
+    ```bash
+    python run.py -s face.jpg -t short_video.mp4 -o test.mp4
+    ```
+    Use a short (5-10 second) test video first.
+  </Step>
+  
+  <Step title="Gather diagnostic info">
+    ```bash
+    python --version
+    ffmpeg -version
+    python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
+    nvidia-smi  # If using NVIDIA GPU
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Based Roop issues are not being actively addressed by maintainers according to the README:
+
+> Issues regarding installation will be closed from now on, we cannot handle the amount of requests.
+
+This documentation provides community-driven solutions to common problems.
+</Warning>

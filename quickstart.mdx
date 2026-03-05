@@ -1,80 +1,477 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start'
+description: 'Perform your first face swap in minutes'
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will walk you through performing your first face swap with Based Roop. You'll learn both the GUI (graphical) and CLI (command-line) approaches.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Make sure you've completed the [Installation](/installation) before proceeding. You'll need Python 3.9+, FFmpeg, and all dependencies installed.
 </Note>
+
+## What You'll Need
+
+<Steps>
+  <Step title="Source Image">
+    An image containing the face you want to use (the "source" face)
+    - Supported formats: JPG, PNG
+    - Should clearly show one face
+    - Higher quality = better results
+  </Step>
+  
+  <Step title="Target Media">
+    An image or video where you want to replace the face (the "target")
+    - Images: JPG, PNG
+    - Videos: MP4, AVI, MOV, etc.
+    - The face in this media will be replaced with the source face
+  </Step>
+</Steps>
+
+## Method 1: Using the GUI (Recommended for Beginners)
+
+The graphical user interface is the easiest way to get started.
+
+<Steps>
+  <Step title="Launch the GUI">
+    Run the application without any command-line arguments:
+    
+    ```bash
+    python run.py
+    ```
+    
+    <Note>
+      On first run, the application will download AI models (~300MB). This is a one-time download and may take a few minutes depending on your internet connection.
+    </Note>
+    
+    The GUI window will open:
+    
+    ![GUI Interface](gui-demo.png)
+  </Step>
+  
+  <Step title="Select Source Face">
+    1. Click the **"Select a face"** button
+    2. Choose an image containing the face you want to use
+    3. The image will be displayed in the preview
+  </Step>
+  
+  <Step title="Select Target Media">
+    1. Click the **"Select target"** button  
+    2. Choose the image or video where you want to swap the face
+    3. The target will be displayed in the preview
+  </Step>
+  
+  <Step title="Choose Output Location">
+    1. Click the **"Select output"** button
+    2. Choose where to save the processed result
+    3. For videos, you can select a directory
+  </Step>
+  
+  <Step title="Start Processing">
+    1. Click the **"Start"** button
+    2. You'll see progress updates in the status area
+    3. For videos, you can watch frames being processed in real-time in the output directory
+  </Step>
+  
+  <Step title="View Results">
+    Once processing completes:
+    - Navigate to your output location
+    - Open the processed file
+    - You'll see the face-swapped result!
+  </Step>
+</Steps>
+
+### Processing Status Messages
+
+During processing, you'll see status updates:
+
+- `Creating temp resources...` - Setting up temporary workspace
+- `Extracting frames...` - Separating video into individual frames  
+- `Progressing...` - Performing the face swap
+- `Detecting fps...` - Analyzing video frame rate
+- `Creating video with X fps...` - Reassembling the video
+- `Restoring audio...` - Adding original audio back
+- `Processing to video succeed!` - Completed successfully
+
+## Method 2: Using the CLI (Command Line)
+
+The command-line interface offers more control and is better for automation.
+
+<Note>
+  Providing `-s/--source` argument automatically enables CLI mode (headless operation without GUI).
+</Note>
+
+### Basic CLI Usage
+
+<Steps>
+  <Step title="Basic Face Swap Command">
+    ```bash
+    python run.py \
+      --source path/to/source_face.jpg \
+      --target path/to/target_video.mp4 \
+      --output path/to/output_video.mp4
+    ```
+    
+    This performs a basic face swap with default settings.
+  </Step>
+  
+  <Step title="Monitor Progress">
+    The CLI will display progress in your terminal:
+    
+    ```
+    [ROOP.CORE] Creating temp resources...
+    [ROOP.CORE] Extracting frames...
+    [FACE_SWAPPER] Progressing...
+    [ROOP.CORE] Creating video with 30.0 fps...
+    [ROOP.CORE] Restoring audio...
+    [ROOP.CORE] Processing to video succeed!
+    ```
+  </Step>
+</Steps>
+
+### Image to Image Face Swap
+
+Swap faces in a static image:
+
+```bash
+python run.py \
+  --source face.jpg \
+  --target photo.jpg \
+  --output result.jpg
+```
+
+### Video Face Swap Examples
+
+<CodeGroup>
+
+```bash Basic Video Swap
+python run.py \
+  --source face.jpg \
+  --target video.mp4 \
+  --output output.mp4
+```
+
+```bash Keep Original FPS
+python run.py \
+  --source face.jpg \
+  --target video.mp4 \
+  --output output.mp4 \
+  --keep-fps
+```
+
+```bash Swap Multiple Faces
+python run.py \
+  --source face.jpg \
+  --target video.mp4 \
+  --output output.mp4 \
+  --many-faces
+```
+
+```bash High Quality Output
+python run.py \
+  --source face.jpg \
+  --target video.mp4 \
+  --output output.mp4 \
+  --keep-fps \
+  --video-encoder libx265 \
+  --video-quality 10
+```
+
+</CodeGroup>
+
+## Command-Line Options Reference
+
+### Required Arguments
+
+<ParamField path="--source" type="string" required>
+  Path to source image containing the face to use
+  
+  ```bash
+  -s path/to/face.jpg
+  --source path/to/face.jpg
+  ```
+</ParamField>
+
+<ParamField path="--target" type="string" required>
+  Path to target image or video where face will be replaced
+  
+  ```bash
+  -t path/to/video.mp4
+  --target path/to/video.mp4
+  ```
+</ParamField>
+
+<ParamField path="--output" type="string" required>
+  Path for the output file or directory
+  
+  ```bash
+  -o path/to/result.mp4
+  --output path/to/result.mp4
+  ```
+</ParamField>
+
+### Processing Options
+
+<ParamField path="--frame-processor" type="array" default="['face_swapper']">
+  Frame processors to use. Options include:
+  - `face_swapper` - Swap faces (default)
+  - `face_enhancer` - Enhance face quality
+  
+  ```bash
+  --frame-processor face_swapper face_enhancer
+  ```
+</ParamField>
+
+<ParamField path="--many-faces" type="boolean" default="false">
+  Process every face in the frame instead of just the first detected face
+  
+  ```bash
+  --many-faces
+  ```
+</ParamField>
+
+### Video Options
+
+<ParamField path="--keep-fps" type="boolean" default="false">
+  Preserve the original video frame rate. Without this, output is 30 FPS.
+  
+  ```bash
+  --keep-fps
+  ```
+  
+  <Warning>
+    Not keeping FPS may cause audio sync issues
+  </Warning>
+</ParamField>
+
+<ParamField path="--keep-audio" type="boolean" default="true">
+  Keep the original audio track from the target video
+  
+  ```bash
+  --keep-audio
+  ```
+</ParamField>
+
+<ParamField path="--video-encoder" type="enum" default="libx264">
+  Video encoder to use. Options:
+  - `libx264` - H.264 (most compatible, default)
+  - `libx265` - H.265 (better compression, smaller files)
+  - `libvpx-vp9` - VP9 (for WebM)
+  
+  ```bash
+  --video-encoder libx265
+  ```
+</ParamField>
+
+<ParamField path="--video-quality" type="integer" default="18">
+  Output video quality (0-51). Lower = better quality but larger file.
+  - 0-17: Very high quality
+  - 18-23: High quality (recommended)
+  - 24-28: Medium quality
+  - 29+: Lower quality
+  
+  ```bash
+  --video-quality 15
+  ```
+</ParamField>
+
+### Performance Options
+
+<ParamField path="--execution-provider" type="array" default="['cpu']">
+  Execution provider for processing. Options:
+  - `cpu` - CPU processing (default, most compatible)
+  - `cuda` - NVIDIA GPU acceleration
+  - `dml` - DirectML (Windows)
+  - `rocm` - AMD GPU (Linux)
+  
+  ```bash
+  --execution-provider cuda
+  ```
+  
+  <Note>
+    See [GPU Acceleration](/guides/gpu-acceleration) for setup details
+  </Note>
+</ParamField>
+
+<ParamField path="--execution-threads" type="integer">
+  Number of threads to use for processing
+  - Default: 8 for CPU
+  - Default: 1 for GPU providers
+  
+  ```bash
+  --execution-threads 16
+  ```
+</ParamField>
+
+<ParamField path="--max-memory" type="integer">
+  Maximum RAM usage in GB
+  - Default: 16 (Windows/Linux)
+  - Default: 4 (macOS)
+  
+  ```bash
+  --max-memory 32
+  ```
+</ParamField>
+
+### Advanced Options
+
+<ParamField path="--keep-frames" type="boolean" default="false">
+  Keep temporary frame files after processing (useful for debugging)
+  
+  ```bash
+  --keep-frames
+  ```
+</ParamField>
+
+## Webcam Mode (Live Face Swap)
+
+You can also use Based Roop for live face swapping with your webcam.
+
+<Steps>
+  <Step title="Launch GUI">
+    ```bash
+    python run.py
+    ```
+  </Step>
+  
+  <Step title="Select Face">
+    Choose a source face image
+  </Step>
+  
+  <Step title="Click Live">
+    Click the "Live" button to start webcam mode
+  </Step>
+  
+  <Step title="Wait for Preview">
+    Wait 10-30 seconds for the preview to initialize
+    
+    <Note>
+      The first initialization takes longer. Subsequent starts are faster.
+    </Note>
+  </Step>
+  
+  <Step title="Use with Streaming">
+    Use screen capture software like OBS to stream the preview window
+  </Step>
+</Steps>
+
+<Note>
+  To change the face in live mode, select a different image. The preview will restart automatically.
+</Note>
+
+## Expected Results
+
+### Processing Times (Approximate)
+
+<Tabs>
+  <Tab title="CPU Processing">
+    - **Single Image**: 2-5 seconds
+    - **10-second video**: 5-15 minutes  
+    - **1-minute video**: 30-90 minutes
+    
+    <Note>
+      Times vary based on CPU speed and video resolution
+    </Note>
+  </Tab>
+  
+  <Tab title="GPU Processing">
+    - **Single Image**: Less than 1 second
+    - **10-second video**: 30-60 seconds
+    - **1-minute video**: 3-6 minutes
+    
+    <Note>
+      GPU acceleration provides 10-50x speedup. See [GPU Acceleration](/guides/gpu-acceleration).
+    </Note>
+  </Tab>
+</Tabs>
+
+### Output Quality
+
+- **Image swaps**: Usually very high quality
+- **Video swaps**: Quality depends on source material and settings
+- **Face enhancement**: Use `--frame-processor face_swapper face_enhancer` for improved results
+
+## Troubleshooting
+
+<Accordion title="Face not detected">
+  **Issue**: No face is being swapped
+  
+  **Solutions**:
+  - Ensure faces are clearly visible and well-lit
+  - Try a different source image with a frontal face view
+  - Check that the source image actually contains a face
+  - Use `--many-faces` if multiple faces are present
+</Accordion>
+
+<Accordion title="Audio out of sync">
+  **Issue**: Audio doesn't match video in output
+  
+  **Solution**: Always use `--keep-fps` to maintain original frame rate:
+  
+  ```bash
+  python run.py --source face.jpg --target video.mp4 --output out.mp4 --keep-fps
+  ```
+</Accordion>
+
+<Accordion title="Poor quality output">
+  **Issue**: Output looks blurry or low quality
+  
+  **Solutions**:
+  - Use higher quality source images
+  - Lower the `--video-quality` value (e.g., 12-15)
+  - Add face enhancement: `--frame-processor face_swapper face_enhancer`
+  - Use better video encoder: `--video-encoder libx265`
+</Accordion>
+
+<Accordion title="Processing is very slow">
+  **Issue**: Face swapping takes too long
+  
+  **Solutions**:
+  - Enable GPU acceleration (see [GPU Acceleration](/guides/gpu-acceleration))
+  - Reduce video resolution before processing
+  - Increase `--max-memory` if you have more RAM available
+  - Adjust `--execution-threads` for CPU processing
+</Accordion>
+
+<Accordion title="Out of memory errors">
+  **Issue**: Process crashes with memory errors
+  
+  **Solutions**:
+  - Reduce `--max-memory` to a lower value
+  - Process shorter video segments
+  - Close other applications
+  - Use `--execution-threads 1` to reduce memory usage
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="GPU Acceleration" icon="microchip" href="/gpu-acceleration">
+    Speed up processing 10-50x with GPU support
+  </Card>
+  <Card title="Advanced Options" icon="sliders" href="/advanced-options">
+    Learn about all available command-line options
+  </Card>
+  <Card title="Best Practices" icon="star" href="/best-practices">
+    Tips for achieving the best face swap results
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Detailed solutions to common issues
+  </Card>
+</CardGroup>
+
+## Legal and Ethical Use
+
+<Warning>
+  Based Roop includes built-in content safety checks to prevent processing of inappropriate material including nudity, graphic content, and sensitive footage.
+</Warning>
+
+### Responsible Use Guidelines
+
+- **Get consent**: When using real people's faces, obtain their permission
+- **Disclose deepfakes**: Clearly label face-swapped content as synthetic/deepfake
+- **Follow local laws**: Ensure your use complies with applicable regulations
+- **Respect ethics**: Use this technology for creative and positive purposes
+
+The developers are not responsible for misuse by end-users. Use this tool responsibly and ethically.

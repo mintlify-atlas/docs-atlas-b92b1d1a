@@ -1,0 +1,369 @@
+---
+title: CLI Mode
+description: Master command-line usage of Based Roop for automated face swapping workflows
+---
+
+## Overview
+
+CLI mode activates automatically when you provide the `-s/--source` argument. This enables headless operation without the GUI, perfect for batch processing and automation.
+
+```bash
+python run.py -s source.jpg -t target.mp4 -o output.mp4
+```
+
+## Command-Line Arguments
+
+### Required Arguments
+
+<ParamField path="-s, --source" type="string">
+  Path to the source image containing the desired face
+  
+  ```bash
+  python run.py --source face.jpg
+  ```
+</ParamField>
+
+<ParamField path="-t, --target" type="string">
+  Path to the target image or video where the face will be swapped
+  
+  ```bash
+  python run.py --target video.mp4
+  ```
+</ParamField>
+
+<ParamField path="-o, --output" type="string">
+  Path for the output file or directory
+  
+  ```bash
+  python run.py --output result.mp4
+  ```
+</ParamField>
+
+### Frame Processing Options
+
+<ParamField path="--frame-processor" type="string[]" default="['face_swapper']">
+  Specify one or more frame processors to apply
+  
+  Choices: `face_swapper`, `face_enhancer`, and others
+  
+  ```bash
+  # Single processor
+  python run.py --frame-processor face_swapper
+  
+  # Multiple processors
+  python run.py --frame-processor face_swapper face_enhancer
+  ```
+</ParamField>
+
+### Video Processing Options
+
+<ParamField path="--keep-fps" type="boolean" default="False">
+  Preserve the original frame rate of the target video
+  
+  ```bash
+  python run.py --keep-fps
+  ```
+  
+  <Warning>
+    When disabled, output video defaults to 30 fps which may cause audio sync issues
+  </Warning>
+</ParamField>
+
+<ParamField path="--keep-audio" type="boolean" default="True">
+  Retain the original audio track from the target video
+  
+  ```bash
+  # Audio is kept by default
+  python run.py -s face.jpg -t video.mp4 -o output.mp4
+  ```
+  
+  <Note>
+    If `--keep-fps` is disabled, audio restoration may cause sync issues
+  </Note>
+</ParamField>
+
+<ParamField path="--keep-frames" type="boolean" default="False">
+  Preserve temporary extracted frames after processing
+  
+  ```bash
+  python run.py --keep-frames
+  ```
+  
+  Useful for debugging or manual frame inspection
+</ParamField>
+
+### Face Detection Options
+
+<ParamField path="--many-faces" type="boolean" default="False">
+  Process every detected face in the frame instead of only the primary face
+  
+  ```bash
+  python run.py --many-faces
+  ```
+  
+  <Tip>
+    Enable this for group photos or scenes with multiple people
+  </Tip>
+</ParamField>
+
+### Video Encoding Options
+
+<ParamField path="--video-encoder" type="string" default="libx264">
+  Select the output video encoder
+  
+  Choices: `libx264`, `libx265`, `libvpx-vp9`
+  
+  ```bash
+  # H.265 for better compression
+  python run.py --video-encoder libx265
+  
+  # VP9 for web compatibility
+  python run.py --video-encoder libvpx-vp9
+  ```
+</ParamField>
+
+<ParamField path="--video-quality" type="integer" default="18">
+  Adjust output video quality (0-51, lower is better)
+  
+  ```bash
+  # High quality (larger file)
+  python run.py --video-quality 10
+  
+  # Lower quality (smaller file)
+  python run.py --video-quality 28
+  ```
+  
+  <Note>
+    For libx264/libx265: 0 is lossless, 18 is visually lossless, 23 is default, 51 is worst
+  </Note>
+</ParamField>
+
+### Performance Options
+
+<ParamField path="--max-memory" type="integer" default="4 (macOS) | 16 (other)">
+  Maximum amount of RAM to use in GB
+  
+  ```bash
+  python run.py --max-memory 8
+  ```
+  
+  Default values:
+  - macOS: 4 GB
+  - Windows/Linux: 16 GB
+</ParamField>
+
+<ParamField path="--execution-provider" type="string[]" default="['cpu']">
+  Specify execution provider(s) for acceleration
+  
+  Available providers depend on your system. See [GPU Acceleration guide](/guides/gpu-acceleration)
+  
+  ```bash
+  # Use CUDA (NVIDIA GPU)
+  python run.py --execution-provider cuda
+  
+  # Use DirectML (Windows)
+  python run.py --execution-provider directml
+  
+  # Use ROCm (AMD GPU)
+  python run.py --execution-provider rocm
+  ```
+</ParamField>
+
+<ParamField path="--execution-threads" type="integer" default="8 (CPU) | 1 (GPU)">
+  Number of execution threads to use
+  
+  ```bash
+  python run.py --execution-threads 4
+  ```
+  
+  Default values:
+  - CPU: 8 threads
+  - DmlExecutionProvider: 1 thread
+  - ROCMExecutionProvider: 1 thread
+</ParamField>
+
+### Utility Options
+
+<ParamField path="-v, --version" type="flag">
+  Display program version and exit
+  
+  ```bash
+  python run.py --version
+  # Output: roop <version>
+  ```
+</ParamField>
+
+<ParamField path="-h, --help" type="flag">
+  Show help message with all available options
+  
+  ```bash
+  python run.py --help
+  ```
+</ParamField>
+
+## Processing Workflows
+
+### Image-to-Image Swapping
+
+```bash
+# Basic image swap
+python run.py -s source_face.jpg -t target_photo.jpg -o output.jpg
+
+# With face enhancement
+python run.py -s face.jpg -t photo.jpg -o result.jpg \
+  --frame-processor face_swapper face_enhancer
+```
+
+Workflow:
+1. Copies target to output path
+2. Applies each frame processor sequentially
+3. Saves final result
+
+### Image-to-Video Swapping
+
+```bash
+# Standard video processing
+python run.py -s face.jpg -t input.mp4 -o output.mp4 \
+  --keep-fps --keep-audio
+
+# High quality output
+python run.py -s face.jpg -t video.mp4 -o result.mp4 \
+  --keep-fps --keep-audio \
+  --video-encoder libx265 \
+  --video-quality 15
+```
+
+Workflow:
+1. Creates temporary directory for frame extraction
+2. Extracts all frames from target video
+3. Processes each frame with selected processors
+4. Detects original fps (if `--keep-fps` enabled)
+5. Creates output video from processed frames
+6. Restores audio track (if `--keep-audio` enabled)
+7. Cleans temporary files (unless `--keep-frames` enabled)
+
+### Batch Processing Multiple Videos
+
+```bash
+#!/bin/bash
+# Process multiple videos with same face
+
+SOURCE="celebrity_face.jpg"
+
+for video in videos/*.mp4; do
+  filename=$(basename "$video" .mp4)
+  python run.py \
+    -s "$SOURCE" \
+    -t "$video" \
+    -o "output/${filename}_swapped.mp4" \
+    --keep-fps \
+    --keep-audio \
+    --execution-provider cuda
+done
+```
+
+### Processing All Faces in Group Videos
+
+```bash
+# Swap all faces in a group scene
+python run.py -s face.jpg -t group_video.mp4 -o output.mp4 \
+  --many-faces \
+  --keep-fps \
+  --keep-audio
+```
+
+## Environment Variables
+
+Based Roop sets these environment variables for optimization:
+
+```python
+# Single thread for CUDA performance
+OMP_NUM_THREADS=1  # Set when --execution-provider is used
+
+# Reduce TensorFlow logging
+TF_CPP_MIN_LOG_LEVEL=2  # Always set
+```
+
+## Resource Management
+
+The `--max-memory` flag limits RAM usage differently per platform:
+
+<CodeGroup>
+```python macOS
+# macOS uses different memory calculation
+memory_limit = max_memory * 1024 ** 6  # Different exponent
+```
+
+```python Windows
+# Windows uses Win32 API
+import ctypes
+kernel32 = ctypes.windll.kernel32
+kernel32.SetProcessWorkingSetSize(
+    -1, 
+    ctypes.c_size_t(memory), 
+    ctypes.c_size_t(memory)
+)
+```
+
+```python Linux
+# Linux uses resource module
+import resource
+resource.setrlimit(
+    resource.RLIMIT_DATA, 
+    (memory, memory)
+)
+```
+</CodeGroup>
+
+## Status Messages
+
+During CLI processing, status updates are printed to stdout:
+
+```
+[ROOP.CORE] Creating temp resources...
+[ROOP.CORE] Extracting frames...
+[FACE_SWAPPER] Progressing...
+[ROOP.CORE] Detecting fps...
+[ROOP.CORE] Creating video with 29.97 fps...
+[ROOP.CORE] Restoring audio...
+[ROOP.CORE] Processing to video succeed!
+```
+
+## Pre-Flight Checks
+
+Before processing, Based Roop validates:
+
+<Steps>
+  <Step title="Python version">
+    Requires Python 3.9 or higher
+  </Step>
+  <Step title="FFmpeg installation">
+    Checks if `ffmpeg` is available in PATH
+  </Step>
+  <Step title="Frame processor compatibility">
+    Calls `pre_check()` on each enabled processor
+  </Step>
+</Steps>
+
+<Warning>
+  Processing will abort if any pre-flight check fails
+</Warning>
+
+## Complete Example
+
+```bash
+# Production-ready command with all options
+python run.py \
+  --source celebrity.jpg \
+  --target interview.mp4 \
+  --output deepfake.mp4 \
+  --frame-processor face_swapper face_enhancer \
+  --keep-fps \
+  --keep-audio \
+  --many-faces \
+  --video-encoder libx264 \
+  --video-quality 18 \
+  --max-memory 16 \
+  --execution-provider cuda \
+  --execution-threads 1
+```

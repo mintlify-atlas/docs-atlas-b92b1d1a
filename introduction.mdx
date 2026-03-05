@@ -1,0 +1,309 @@
+---
+title: "Welcome to Based Roop"
+description: "AI-powered face swapping for images and videos with real-time processing capabilities"
+mode: "custom"
+---
+
+<div className="relative w-full overflow-hidden bg-gradient-to-br from-[#ee6d2d] via-[#d45a1f] to-[#c04e15] dark:from-[#0f1117] dark:via-[#1a1520] dark:to-[#0f1117] py-20">
+  <div className="absolute inset-0 bg-black/40 dark:bg-black/20"></div>
+  <div className="relative max-w-6xl mx-auto px-6 sm:px-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          AI-Powered Face Swapping
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 max-w-2xl mb-8">
+          Transform faces in images and videos using cutting-edge deep learning. Based Roop delivers professional-quality face swapping with GPU acceleration and real-time processing.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center px-6 py-3 text-base font-semibold rounded-full bg-white text-[#ee6d2d] hover:bg-gray-100 dark:bg-white dark:text-[#ee6d2d] dark:hover:bg-gray-200 transition-colors shadow-lg"
+          >
+            Get Started
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a 
+            href="/api/core" 
+            className="inline-flex items-center px-6 py-3 text-base font-semibold rounded-full border-2 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50 dark:border-white/30 dark:bg-white/10 dark:hover:bg-white/20 transition-colors backdrop-blur-sm"
+          >
+            API Reference
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:flex justify-center">
+        <div className="relative w-full max-w-md">
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#36ab56] via-[#ee6d2d] to-[#73a2f0] rounded-3xl blur-2xl opacity-50"></div>
+          <div className="relative bg-[#1a1d27] dark:bg-[#1a1d27] rounded-2xl p-6 border border-white/10">
+            <div className="space-y-3">
+              <div className="h-12 bg-gradient-to-r from-[#ee6d2d]/20 to-[#73a2f0]/20 rounded-lg flex items-center px-4">
+                <span className="text-sm font-mono text-white/80">python run.py --source face.jpg</span>
+              </div>
+              <div className="h-12 bg-gradient-to-r from-[#36ab56]/20 to-[#ee6d2d]/20 rounded-lg flex items-center px-4">
+                <span className="text-sm font-mono text-white/80">--target video.mp4</span>
+              </div>
+              <div className="h-12 bg-gradient-to-r from-[#73a2f0]/20 to-[#36ab56]/20 rounded-lg flex items-center px-4">
+                <span className="text-sm font-mono text-white/80">--output result.mp4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      Quick Start
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Get up and running with Based Roop in minutes
+    </p>
+  </div>
+
+  <Steps>
+    <Step title="Install Dependencies">
+      Based Roop requires Python 3.9+ and FFmpeg. Install the required packages:
+      
+      ```bash
+      pip install -r requirements.txt
+      ```
+      
+      <Note>
+        On first run, Based Roop will automatically download AI models (~300MB). This is a one-time setup.
+      </Note>
+    </Step>
+
+    <Step title="Prepare Your Media">
+      You'll need two files:
+      - **Source image**: A photo containing the face you want to use
+      - **Target media**: An image or video where you want to replace faces
+      
+      Make sure your source image clearly shows a single face for best results.
+    </Step>
+
+    <Step title="Run Face Swapping">
+      Launch the GUI interface to get started:
+      
+      ```bash
+      python run.py
+      ```
+      
+      Or use the CLI for automation:
+      
+      ```bash
+      python run.py --source face.jpg --target video.mp4 --output result.mp4
+      ```
+      
+      <Accordion title="Expected Output">
+        The processing will show real-time progress:
+        
+        ```
+        [ROOP.CORE] Extracting frames...
+        [ROOP.FACE-SWAPPER] Progressing...
+        [ROOP.CORE] Creating video with 30.0 fps...
+        [ROOP.CORE] Processing to video succeed!
+        ```
+      </Accordion>
+    </Step>
+
+    <Step title="Enhance Results (Optional)">
+      Add face enhancement for higher quality output:
+      
+      ```bash
+      python run.py --source face.jpg --target video.mp4 --output result.mp4 \
+        --frame-processor face_swapper face_enhancer
+      ```
+      
+      This applies GFPGAN enhancement to improve facial details and quality.
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      Explore by Topic
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Dive deeper into Based Roop's capabilities
+    </p>
+  </div>
+
+  <CardGroup cols={2}>
+    <Card title="GUI Mode" icon="window" href="/guides/gui-mode">
+      Use the intuitive graphical interface with drag-and-drop face selection and real-time preview
+    </Card>
+    <Card title="CLI Mode" icon="terminal" href="/guides/cli-mode">
+      Automate face swapping workflows with powerful command-line options and batch processing
+    </Card>
+    <Card title="Webcam Mode" icon="video" href="/guides/webcam-mode">
+      Apply face swapping in real-time to your webcam feed for live streaming and video calls
+    </Card>
+    <Card title="GPU Acceleration" icon="microchip" href="/guides/gpu-acceleration">
+      Leverage CUDA and other execution providers for dramatically faster processing
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      Core Features
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Everything you need for professional face swapping
+    </p>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a href="/concepts/face-swapping" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#ee6d2d] dark:hover:border-[#ee6d2d] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#ee6d2d]/10 dark:bg-[#ee6d2d]/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#ee6d2d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Face Swapping</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Advanced deep learning models powered by InsightFace for accurate face detection and seamless swapping
+            </p>
+            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#ee6d2d]">
+              Learn more
+              <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <a href="/concepts/face-enhancement" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#36ab56] dark:hover:border-[#36ab56] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#36ab56]/10 dark:bg-[#36ab56]/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#36ab56]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Face Enhancement</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              GFPGAN-powered enhancement to restore facial details and improve output quality dramatically
+            </p>
+            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#36ab56]">
+              Learn more
+              <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <a href="/concepts/frame-processors" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#73a2f0] dark:hover:border-[#73a2f0] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#73a2f0]/10 dark:bg-[#73a2f0]/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#73a2f0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Frame Processors</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Modular pipeline architecture supporting multiple processors and custom processing workflows
+            </p>
+            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#73a2f0]">
+              Learn more
+              <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <a href="/concepts/execution-providers" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#ee6d2d] dark:hover:border-[#ee6d2d] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#ee6d2d]/10 dark:bg-[#ee6d2d]/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#ee6d2d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Execution Providers</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Support for CPU, CUDA, DirectML, and ROCm backends for optimal performance on any hardware
+            </p>
+            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#ee6d2d]">
+              Learn more
+              <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      Resources
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Everything you need to master Based Roop
+    </p>
+  </div>
+
+  <CardGroup cols={3}>
+    <Card title="Installation Guide" icon="download" href="/installation">
+      Step-by-step setup instructions for all platforms
+    </Card>
+    <Card title="Configuration" icon="sliders" href="/advanced/configuration">
+      Fine-tune settings for optimal performance
+    </Card>
+    <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+      Common issues and solutions
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#ee6d2d] to-[#d45a1f] dark:from-[#1a1d27] dark:to-[#0f1117] border border-transparent dark:border-[#27272a] p-12">
+    <div className="absolute inset-0 bg-black/10 dark:bg-black/20"></div>
+    <div className="relative text-center">
+      <h2 className="text-3xl sm:text-4xl font-bold text-white dark:text-white mb-4">
+        Ready to Transform Faces?
+      </h2>
+      <p className="text-lg text-white/90 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+        Start swapping faces with professional-quality results in minutes. No training datasets required.
+      </p>
+      <a 
+        href="/quickstart" 
+        className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-full bg-white text-[#ee6d2d] hover:bg-gray-100 dark:bg-white dark:text-[#ee6d2d] dark:hover:bg-gray-200 transition-colors shadow-xl"
+      >
+        Get Started Now
+        <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,262 @@
+---
+title: 'Face Enhancement'
+description: 'Improve face quality with GFPGAN integration'
+---
+
+## Overview
+
+Based Roop integrates GFPGAN (Generative Facial Prior GAN) to enhance face quality after swapping. The face enhancer improves details, reduces artifacts, and produces more realistic results.
+
+## GFPGAN Integration
+
+The face enhancer uses the GFPGANv1.4 model, implemented in `face_enhancer.py`:
+
+```python
+def get_face_enhancer() -> Any:
+    global FACE_ENHANCER
+    
+    with THREAD_LOCK:
+        if FACE_ENHANCER is None:
+            model_path = resolve_relative_path('../models/GFPGANv1.4.pth')
+            FACE_ENHANCER = gfpgan.GFPGANer(
+                model_path=model_path, 
+                upscale=1
+            )
+    return FACE_ENHANCER
+```
+
+**Configuration:**
+- **Model**: `GFPGANv1.4.pth` from HuggingFace
+- **Upscale**: Set to `1` (no resolution increase, only quality enhancement)
+- **Loading**: Thread-safe singleton pattern
+
+## Model Download
+
+The model is automatically downloaded during initialization:
+
+```python
+def pre_check() -> bool:
+    download_directory_path = resolve_relative_path('../models')
+    conditional_download(download_directory_path, [
+        'https://huggingface.co/henryruhs/roop/resolve/main/GFPGANv1.4.pth'
+    ])
+    return True
+```
+
+## Enhancement Function
+
+The core enhancement logic is implemented in `enhance_face()`:
+
+```python
+def enhance_face(temp_frame: Frame) -> Frame:
+    with THREAD_SEMAPHORE:
+        _, _, temp_frame = get_face_enhancer().enhance(
+            temp_frame,
+            paste_back=True
+        )
+    return temp_frame
+```
+
+**Key features:**
+- **Thread Semaphore**: Controls concurrent access to prevent GPU memory issues
+- **paste_back=True**: Blends enhanced face seamlessly into original frame
+- **Returns**: The full frame with enhanced face
+
+<Note>
+The enhancer uses a semaphore instead of a lock to allow controlled concurrent processing while preventing resource exhaustion.
+</Note>
+
+## Frame Processing Pipeline
+
+The face enhancer integrates into the frame processor pipeline:
+
+```python
+def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
+    if target_face := get_one_face(temp_frame):
+        temp_frame = enhance_face(temp_frame)
+    return temp_frame
+```
+
+**Process flow:**
+1. Detect if a face exists in the frame using `get_one_face()`
+2. If a face is found, enhance the entire frame
+3. Return the enhanced frame
+
+<Warning>
+The face enhancer only processes frames that contain detectable faces. Frames without faces are returned unchanged.
+</Warning>
+
+## Using with Face Swapper
+
+The enhancer is typically used in combination with the face swapper for best results:
+
+```bash
+python run.py \
+  -s source.jpg \
+  -t target.mp4 \
+  -o output.mp4 \
+  --frame-processor face_swapper face_enhancer
+```
+
+<Steps>
+  <Step title="Face Swapping">
+    The `face_swapper` processor replaces the target face with the source face
+  </Step>
+  
+  <Step title="Face Enhancement">
+    The `face_enhancer` processor improves the swapped face quality
+  </Step>
+  
+  <Step title="Output">
+    The final frame has both the swapped face and enhanced quality
+  </Step>
+</Steps>
+
+## Processing Architecture
+
+```mermaid
+graph LR
+    A[Input Frame] --> B[Face Swapper]
+    B --> C[Face Enhancer]
+    C --> D[Output Frame]
+    
+    style B fill:#4F46E5
+    style C fill:#7C3AED
+    style D fill:#059669
+```
+
+## Batch Processing
+
+For video processing, frames are enhanced in batches:
+
+```python
+def process_frames(source_path: str, temp_frame_paths: List[str], 
+                   update: Callable[[], None]) -> None:
+    for temp_frame_path in temp_frame_paths:
+        temp_frame = cv2.imread(temp_frame_path)
+        result = process_frame(None, temp_frame)
+        cv2.imwrite(temp_frame_path, result)
+        if update:
+            update()
+```
+
+**Features:**
+- Processes frames sequentially
+- Updates progress callback after each frame
+- Overwrites temporary frames in place
+
+## Quality Comparison
+
+<CardGroup cols={2}>
+  <Card title="Without Enhancement" icon="face-frown">
+    - Visible artifacts from face swapping
+    - Lower detail in facial features
+    - Possible color/lighting mismatches
+    - Faster processing
+  </Card>
+  <Card title="With Enhancement" icon="face-smile">
+    - Reduced artifacts and smoother blending
+    - Enhanced facial details and textures
+    - Better color consistency
+    - Slower processing (additional pass)
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+### Thread Safety
+
+The enhancer uses both a lock and a semaphore:
+
+```python
+THREAD_SEMAPHORE = threading.Semaphore()
+THREAD_LOCK = threading.Lock()
+```
+
+- **THREAD_LOCK**: Protects model initialization
+- **THREAD_SEMAPHORE**: Controls concurrent enhancement operations
+
+### Memory Usage
+
+The GFPGAN model is memory-intensive. The semaphore prevents multiple threads from loading the model into GPU memory simultaneously.
+
+### Processing Time
+
+Enhancement adds significant processing time:
+- **Face swapping only**: ~0.1-0.2s per frame
+- **With enhancement**: ~0.3-0.5s per frame
+
+## Validation
+
+The enhancer validates the target before processing:
+
+```python
+def pre_start() -> bool:
+    if not is_image(roop.globals.target_path) and not is_video(roop.globals.target_path):
+        update_status('Select an image or video for target path.', NAME)
+        return False
+    return True
+```
+
+<Info>
+Unlike the face swapper, the enhancer doesn't require a source image since it only improves existing faces.
+</Info>
+
+## Resource Cleanup
+
+After processing, the model is released:
+
+```python
+def post_process() -> None:
+    global FACE_ENHANCER
+    FACE_ENHANCER = None
+```
+
+## Usage Examples
+
+### Enhance Image Only
+
+```bash
+python run.py \
+  -t input.jpg \
+  -o enhanced.jpg \
+  --frame-processor face_enhancer
+```
+
+### Swap and Enhance
+
+```bash
+python run.py \
+  -s source.jpg \
+  -t target.mp4 \
+  -o output.mp4 \
+  --frame-processor face_swapper face_enhancer
+```
+
+### Enhance Many Faces
+
+```bash
+python run.py \
+  -s source.jpg \
+  -t group.jpg \
+  -o output.jpg \
+  --frame-processor face_swapper face_enhancer \
+  --many-faces
+```
+
+## Technical Details
+
+### GFPGAN Model
+
+- **Purpose**: Blind face restoration using generative priors
+- **Architecture**: GAN-based with pre-trained facial features
+- **Input**: Full frame (not just face crop)
+- **Output**: Enhanced frame with improved facial details
+
+### paste_back Parameter
+
+The `paste_back=True` parameter ensures:
+1. Only the face region is enhanced
+2. The enhanced face is blended back into the original frame
+3. Background and non-face areas remain unchanged
+4. Seamless integration without visible boundaries

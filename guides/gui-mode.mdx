@@ -1,0 +1,163 @@
+---
+title: GUI Mode
+description: Learn how to use Based Roop's graphical interface for face swapping
+---
+
+## Overview
+
+The GUI mode provides a visual interface for face swapping operations. Launch it by running `python run.py` without any command-line arguments.
+
+<Note>
+  When you run Based Roop for the first time, it will download AI models (~300MB in size).
+</Note>
+
+## Interface Layout
+
+The main window (`600x700` pixels) contains:
+
+### Face Selection Panel (Left)
+- **Source image preview** (200x200 pixels) - displays at position (10%, 10%)
+- **"Select a face" button** - opens file dialog to choose source image
+- Located at the left side of the window (relx=0.1)
+
+### Target Selection Panel (Right)
+- **Target preview** (200x200 pixels) - displays selected image/video at position (60%, 10%)
+- **"Select a target" button** - opens file dialog for target image or video
+- Located at the right side of the window (relx=0.6)
+
+### Processing Options
+
+Based Roop includes four toggle switches for processing control:
+
+<CardGroup cols={2}>
+  <Card title="Keep FPS" icon="clock">
+    Maintains the original frame rate of the target video. Default: `False`
+  </Card>
+  <Card title="Keep Frames" icon="images">
+    Preserves temporary frames after processing for inspection. Default: `False`
+  </Card>
+  <Card title="Keep Audio" icon="volume-up">
+    Retains the original audio track from the target video. Default: `True`
+  </Card>
+  <Card title="Many Faces" icon="users">
+    Processes every face detected in the frame instead of just the primary face. Default: `False`
+  </Card>
+</CardGroup>
+
+These switches are implemented using `CTkSwitch` components:
+- **Keep fps** - positioned at (0.1, 0.6)
+- **Keep frames** - positioned at (0.1, 0.65)
+- **Keep audio** - positioned at (0.6, 0.6)
+- **Many faces** - positioned at (0.6, 0.65)
+
+## Action Buttons
+
+The interface provides four primary action buttons:
+
+### Start Button
+Initiates the face swap process:
+1. Opens save dialog for output file
+2. For images: defaults to `output.png`
+3. For videos: defaults to `output.mp4`
+4. Begins processing once output path is selected
+
+Position: (0.15, 0.75), width 20% of window
+
+### Destroy Button
+Stops processing and cleans up temporary files.
+
+Position: (0.4, 0.75), width 20% of window
+
+### Preview Button
+Opens preview window to see face swap results before full processing.
+
+Position: (0.65, 0.75), width 20% of window
+
+### Live Button
+Activates webcam mode for real-time face swapping (see [Webcam Mode guide](/guides/webcam-mode)).
+
+Position: (0.4, 0.83), width 20% of window
+
+## Preview Mode
+
+Preview mode opens a separate window for inspecting results:
+
+<Steps>
+  <Step title="Select source and target">
+    Choose both a source face image and a target image/video
+  </Step>
+  <Step title="Click Preview button">
+    Opens preview window (max size: 1200x700 pixels)
+  </Step>
+  <Step title="Navigate frames (videos only)">
+    Use the slider at the bottom to scrub through video frames
+  </Step>
+  <Step title="View processed result">
+    The preview shows the face swap applied in real-time
+  </Step>
+</Steps>
+
+### Preview Window Features
+
+- **For images**: Displays single processed preview, no slider
+- **For videos**: Includes slider (0 to total frame count) for frame navigation
+- **Image sizing**: Automatically fits within max dimensions using `ImageOps.contain()`
+- **Processing**: Applies all enabled frame processors to preview
+
+<Warning>
+  Preview mode runs the face detection model (`predict_frame`) which may quit the application if inappropriate content is detected.
+</Warning>
+
+## Workflow Example
+
+```python
+# Typical GUI workflow:
+# 1. Launch application
+python run.py
+
+# 2. In GUI:
+#    - Click "Select a face" → choose source.jpg
+#    - Click "Select a target" → choose video.mp4
+#    - Enable "Keep audio" switch
+#    - Enable "Keep fps" switch
+#    - Click "Preview" to verify (optional)
+#    - Click "Start"
+#    - Choose output location → output.mp4
+#    - Wait for processing to complete
+```
+
+## File Selection Details
+
+The file dialogs (`ctk.filedialog.askopenfilename`) remember recent directories:
+
+- `RECENT_DIRECTORY_SOURCE` - last source image location
+- `RECENT_DIRECTORY_TARGET` - last target file location  
+- `RECENT_DIRECTORY_OUTPUT` - last output save location
+
+### Validation
+
+When files are selected:
+- Source must be a valid image (checked via `is_image()`)
+- Target can be image or video (checked via `is_image()` or `is_video()`)
+- Invalid selections reset the preview to `None`
+
+## Status Display
+
+A status label at the bottom of the window (0.1, 0.9, width 80%) shows:
+- Current processing stage
+- Frame processor status
+- Completion messages
+- Error notifications
+
+The status is updated via `update_status(text)` which refreshes the UI with `ROOT.update()`.
+
+## Appearance Customization
+
+The UI uses CustomTkinter with:
+- System appearance mode (`ctk.set_appearance_mode('system')`)
+- Custom color theme loaded from `ui.json`
+- Disabled automatic DPI awareness for consistent sizing
+
+<Tip>
+  The interface includes a donation link at the bottom (0.1, 0.95) directing to GitHub Sponsors.
+</Tip>

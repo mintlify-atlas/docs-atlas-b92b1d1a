@@ -1,0 +1,294 @@
+---
+title: Face Analyser
+description: Face detection and analysis functions for Based Roop
+---
+
+The `roop.face_analyser` module provides face detection and analysis capabilities using the InsightFace library. It detects faces in frames and returns facial landmarks and embeddings.
+
+## Core Functions
+
+### get_face_analyser()
+
+Returns the singleton face analyser instance.
+
+```python
+def get_face_analyser() -> Any
+```
+
+**Description**
+
+Lazy-loads and returns a thread-safe singleton instance of the InsightFace `FaceAnalysis` object. The analyser is configured with:
+- Model: `buffalo_l` (large accuracy model)
+- Detection size: `640x640` pixels
+- Execution providers from `roop.globals.execution_providers`
+
+**Returns**
+
+<ResponseField name="analyser" type="insightface.app.FaceAnalysis">
+  Configured face analysis object ready for detection
+</ResponseField>
+
+**Thread Safety**
+
+Uses a thread lock to ensure only one instance is created in multi-threaded environments.
+
+**Example**
+
+```python
+from roop.face_analyser import get_face_analyser
+import cv2
+
+# Get analyser instance
+analyser = get_face_analyser()
+
+# Use it to detect faces
+frame = cv2.imread('photo.jpg')
+faces = analyser.get(frame)
+print(f"Detected {len(faces)} faces")
+```
+
+**Source**: `roop/face_analyser.py:12-19`
+
+---
+
+### get_one_face()
+
+Detects and returns the leftmost face in a frame.
+
+```python
+def get_one_face(frame: Frame) -> Any
+```
+
+**Parameters**
+
+<ParamField path="frame" type="Frame (numpy.ndarray)" required>
+  Input image frame as a NumPy array (typically from OpenCV)
+</ParamField>
+
+**Returns**
+
+<ResponseField name="face" type="insightface.app.common.Face | None">
+  The detected face object with the smallest X-coordinate (leftmost), or `None` if no face is detected
+</ResponseField>
+
+**Face Object Properties**
+
+The returned face object contains:
+- `bbox`: Bounding box coordinates `[x1, y1, x2, y2]`
+- `kps`: 5 facial keypoints (eyes, nose, mouth corners)
+- `det_score`: Detection confidence score
+- `embedding`: 512-dimensional face embedding
+- `gender`: Gender prediction
+- `age`: Age prediction
+
+**Selection Logic**
+
+Selects the face with the minimum `bbox[0]` value (leftmost X-coordinate). This is useful for:
+- Processing a single subject in multi-person scenes
+- Consistent face selection across video frames
+- Primary subject detection
+
+**Example**
+
+```python
+from roop.face_analyser import get_one_face
+import cv2
+
+# Read image
+frame = cv2.imread('photo.jpg')
+
+# Get the leftmost face
+face = get_one_face(frame)
+
+if face is not None:
+    x1, y1, x2, y2 = face.bbox.astype(int)
+    print(f"Face detected at: ({x1}, {y1}) to ({x2}, {y2})")
+    print(f"Confidence: {face.det_score:.2f}")
+    print(f"Age: {face.age}, Gender: {face.gender}")
+else:
+    print("No face detected")
+```
+
+**Edge Cases**
+
+- Returns `None` if no faces are detected
+- Returns `None` if frame is empty or invalid
+- For multiple faces, consistently returns leftmost one
+
+**Source**: `roop/face_analyser.py:22-27`
+
+---
+
+### get_many_faces()
+
+Detects and returns all faces in a frame.
+
+```python
+def get_many_faces(frame: Frame) -> Any
+```
+
+**Parameters**
+
+<ParamField path="frame" type="Frame (numpy.ndarray)" required>
+  Input image frame as a NumPy array (typically from OpenCV)
+</ParamField>
+
+**Returns**
+
+<ResponseField name="faces" type="list[insightface.app.common.Face] | None">
+  List of all detected face objects, or `None` if an error occurs
+</ResponseField>
+
+**Description**
+
+Detects all faces present in the frame, regardless of position. Useful for:
+- Multi-person face swapping
+- Group photo processing
+- Batch face analysis
+
+**Example**
+
+```python
+from roop.face_analyser import get_many_faces
+import cv2
+
+# Read image with multiple people
+frame = cv2.imread('group_photo.jpg')
+
+# Get all faces
+faces = get_many_faces(frame)
+
+if faces:
+    print(f"Detected {len(faces)} faces")
+    for i, face in enumerate(faces):
+        x1, y1, x2, y2 = face.bbox.astype(int)
+        print(f"Face {i+1}: ({x1}, {y1}) to ({x2}, {y2})")
+        print(f"  Confidence: {face.det_score:.2f}")
+else:
+    print("No faces detected")
+```
+
+**Processing Multiple Faces**
+
+```python
+import roop.globals
+from roop.face_analyser import get_many_faces, get_one_face
+import cv2
+
+frame = cv2.imread('photo.jpg')
+
+# Respect the many_faces setting
+if roop.globals.many_faces:
+    faces = get_many_faces(frame)
+    print(f"Processing {len(faces)} faces")
+else:
+    face = get_one_face(frame)
+    faces = [face] if face else []
+    print(f"Processing single face")
+```
+
+**Edge Cases**
+
+- Returns `None` if an `IndexError` occurs (no faces detected)
+- Returns empty list `[]` if detection succeeds but finds no faces
+- May return faces in any order (not sorted)
+
+**Source**: `roop/face_analyser.py:30-34`
+
+---
+
+## Module Constants
+
+### FACE_ANALYSER
+
+Global singleton instance of the face analyser.
+
+```python
+FACE_ANALYSER: insightface.app.FaceAnalysis | None = None
+```
+
+**Description**
+
+Cached instance of the InsightFace analyser. Initially `None`, then initialized on first call to `get_face_analyser()`.
+
+**Source**: `roop/face_analyser.py:8`
+
+---
+
+### THREAD_LOCK
+
+Thread lock for thread-safe singleton initialization.
+
+```python
+THREAD_LOCK: threading.Lock = threading.Lock()
+```
+
+**Description**
+
+Ensures that only one thread can initialize the `FACE_ANALYSER` at a time, preventing race conditions in multi-threaded environments.
+
+**Source**: `roop/face_analyser.py:9`
+
+---
+
+## Usage in Face Swapping Pipeline
+
+The face analyser is used throughout the processing pipeline:
+
+```python
+import roop.globals
+from roop.face_analyser import get_one_face, get_many_faces
+import cv2
+
+# Read source image (face to swap)
+source_frame = cv2.imread(roop.globals.source_path)
+source_face = get_one_face(source_frame)
+
+if source_face is None:
+    print("No face found in source image")
+    exit()
+
+# Read target frame (where to swap)
+target_frame = cv2.imread(roop.globals.target_path)
+
+# Get target face(s) based on settings
+if roop.globals.many_faces:
+    target_faces = get_many_faces(target_frame)
+else:
+    target_face = get_one_face(target_frame)
+    target_faces = [target_face] if target_face else []
+
+if not target_faces:
+    print("No faces found in target")
+    exit()
+
+print(f"Ready to swap {len(target_faces)} face(s)")
+```
+
+---
+
+## Model Information
+
+**Buffalo L Model**
+
+The `buffalo_l` model is InsightFace's large accuracy model:
+- **Detection**: RetinaFace detector
+- **Recognition**: ArcFace embeddings (512-dim)
+- **Attributes**: Age, gender prediction
+- **Landmarks**: 5-point facial keypoints
+- **Size**: ~640x640 input resolution
+
+**Downloads**
+
+On first run, the model is automatically downloaded to:
+```
+~/.insightface/models/buffalo_l/
+```
+
+**Performance**
+
+- **CPU**: ~500ms per frame
+- **CUDA GPU**: ~50-100ms per frame
+- **ROCm GPU**: ~100-200ms per frame
+
+Performance varies based on image resolution and hardware.

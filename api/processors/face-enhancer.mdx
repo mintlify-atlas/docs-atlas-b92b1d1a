@@ -1,0 +1,417 @@
+---
+title: 'Face Enhancer Processor'
+description: 'API reference for the face enhancer processor that improves face quality using GFPGAN'
+---
+
+## Overview
+
+The face enhancer processor (`roop.processors.frame.face_enhancer`) enhances face quality in images and videos using the GFPGAN (Generative Facial Prior-Generative Adversarial Network) model. It can be used standalone or in combination with the face swapper to improve output quality.
+
+**Module:** `roop.processors.frame.face_enhancer`
+
+**Model:** `GFPGANv1.4.pth`
+
+## Core Functions
+
+### get_face_enhancer()
+
+Retrieves or initializes the GFPGAN face enhancer model instance. Uses thread-safe singleton pattern.
+
+```python
+def get_face_enhancer() -> Any
+```
+
+**Returns:** GFPGAN.GFPGANer instance configured with the GFPGANv1.4 model and upscale factor of 1
+
+**Thread Safety:** Yes - uses `THREAD_LOCK` to prevent race conditions
+
+**Configuration:**
+- Model path: `../models/GFPGANv1.4.pth`
+- Upscale factor: 1 (no resolution upscaling)
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+model = face_enhancer.get_face_enhancer()
+# Model is cached and reused across calls
+```
+
+### enhance_face()
+
+Enhances the quality of faces in a frame using GFPGAN.
+
+```python
+def enhance_face(temp_frame: Frame) -> Frame
+```
+
+<ParamField path="temp_frame" type="Frame" required>
+  The frame (numpy array) containing faces to enhance
+</ParamField>
+
+**Returns:** Enhanced frame with improved face quality
+
+**Thread Safety:** Yes - uses `THREAD_SEMAPHORE` to control concurrent access
+
+**Behavior:**
+- Enhances all faces detected in the frame
+- Uses `paste_back=True` to seamlessly blend enhanced faces back into the original frame
+- Returns the entire frame (not just the face region)
+
+**Example:**
+
+```python
+import cv2
+from roop.processors.frame import face_enhancer
+
+frame = cv2.imread('low_quality.jpg')
+enhanced = face_enhancer.enhance_face(frame)
+cv2.imwrite('enhanced.jpg', enhanced)
+```
+
+### process_frame()
+
+Processes a single frame by enhancing faces if detected.
+
+```python
+def process_frame(source_face: Face, temp_frame: Frame) -> Frame
+```
+
+<ParamField path="source_face" type="Face" required>
+  Source face parameter (not used by face enhancer, kept for interface compatibility)
+</ParamField>
+
+<ParamField path="temp_frame" type="Frame" required>
+  The frame to process
+</ParamField>
+
+**Returns:** Processed frame with enhanced faces
+
+**Behavior:**
+- Checks if at least one face is detected in the frame
+- Only enhances the frame if a face is found
+- Returns original frame unchanged if no faces are detected
+
+**Note:** The `source_face` parameter is not used but required for interface compatibility with other frame processors.
+
+**Example:**
+
+```python
+import cv2
+from roop.processors.frame import face_enhancer
+
+frame = cv2.imread('photo.jpg')
+result = face_enhancer.process_frame(None, frame)
+cv2.imwrite('enhanced_photo.jpg', result)
+```
+
+### process_frames()
+
+Processes multiple frames in batch, typically used as a callback for video processing.
+
+```python
+def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None
+```
+
+<ParamField path="source_path" type="str" required>
+  Source path parameter (not used by face enhancer, kept for interface compatibility)
+</ParamField>
+
+<ParamField path="temp_frame_paths" type="List[str]" required>
+  List of paths to temporary frame files to process
+</ParamField>
+
+<ParamField path="update" type="Callable[[], None]" required>
+  Callback function to invoke after processing each frame (for progress tracking)
+</ParamField>
+
+**Returns:** None - modifies frames in-place by overwriting the temporary files
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+def progress_callback():
+    print("Frame enhanced")
+
+frame_paths = ['temp/frame_001.jpg', 'temp/frame_002.jpg', 'temp/frame_003.jpg']
+face_enhancer.process_frames(None, frame_paths, progress_callback)
+```
+
+### process_image()
+
+Processes a single image file, enhancing faces in the target image.
+
+```python
+def process_image(source_path: str, target_path: str, output_path: str) -> None
+```
+
+<ParamField path="source_path" type="str" required>
+  Source path parameter (not used by face enhancer, kept for interface compatibility)
+</ParamField>
+
+<ParamField path="target_path" type="str" required>
+  Path to the target image to enhance
+</ParamField>
+
+<ParamField path="output_path" type="str" required>
+  Path where the enhanced image will be saved
+</ParamField>
+
+**Returns:** None - writes the result to the output path
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+face_enhancer.process_image(
+    source_path=None,
+    target_path='low_quality.jpg',
+    output_path='enhanced.jpg'
+)
+```
+
+### process_video()
+
+Processes a video by enhancing faces in all frames.
+
+```python
+def process_video(source_path: str, temp_frame_paths: List[str]) -> None
+```
+
+<ParamField path="source_path" type="str" required>
+  Source path parameter (not used by face enhancer, kept for interface compatibility)
+</ParamField>
+
+<ParamField path="temp_frame_paths" type="List[str]" required>
+  List of paths to temporary frame files extracted from the video
+</ParamField>
+
+**Returns:** None - delegates to `roop.processors.frame.core.process_video()` with multi-threading support
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+# Assume frames are already extracted
+frame_paths = ['temp/frame_001.jpg', 'temp/frame_002.jpg', ...]
+face_enhancer.process_video(None, frame_paths)
+```
+
+## Lifecycle Functions
+
+### pre_check()
+
+Validates prerequisites and downloads required model files.
+
+```python
+def pre_check() -> bool
+```
+
+**Returns:** `True` if all prerequisites are met
+
+**Behavior:**
+- Downloads `GFPGANv1.4.pth` model from HuggingFace if not present
+- Model URL: `https://huggingface.co/henryruhs/roop/resolve/main/GFPGANv1.4.pth`
+- Downloads to: `../models/` directory relative to the module
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+if face_enhancer.pre_check():
+    print("Ready to enhance faces")
+```
+
+### pre_start()
+
+Validates that the target path is valid.
+
+```python
+def pre_start() -> bool
+```
+
+**Returns:** `True` if validation passes, `False` otherwise
+
+**Validation Rules:**
+- Target path must be either an image or video file
+
+**Note:** Unlike the face swapper, the face enhancer does not require a source image or face detection validation during pre_start.
+
+**Example:**
+
+```python
+import roop.globals
+from roop.processors.frame import face_enhancer
+
+roop.globals.target_path = 'video.mp4'
+
+if face_enhancer.pre_start():
+    # Proceed with processing
+    pass
+else:
+    # Handle validation error
+    print("Invalid target path")
+```
+
+### post_process()
+
+Cleans up resources by releasing the face enhancer model from memory.
+
+```python
+def post_process() -> None
+```
+
+**Returns:** None
+
+**Behavior:**
+- Sets the global `FACE_ENHANCER` instance to `None`
+- Allows garbage collection of the model to free memory
+
+**Example:**
+
+```python
+from roop.processors.frame import face_enhancer
+
+# After processing is complete
+face_enhancer.post_process()
+```
+
+## Module Constants
+
+<ParamField path="FACE_ENHANCER" type="Any">
+  Global singleton instance of the GFPGAN model (initialized lazily)
+</ParamField>
+
+<ParamField path="THREAD_SEMAPHORE" type="threading.Semaphore">
+  Semaphore for controlling concurrent enhancement operations
+</ParamField>
+
+<ParamField path="THREAD_LOCK" type="threading.Lock">
+  Thread lock for thread-safe model initialization
+</ParamField>
+
+<ParamField path="NAME" type="str">
+  Module identifier: `'ROOP.FACE-ENHANCER'`
+</ParamField>
+
+## GFPGAN Integration
+
+The face enhancer uses GFPGAN (Generative Facial Prior-Generative Adversarial Network) for face restoration:
+
+### Model Details
+
+- **Version:** GFPGANv1.4
+- **Format:** PyTorch model (.pth)
+- **Upscale Factor:** 1 (preserves original resolution)
+- **Paste Back:** Enabled (seamlessly blends enhanced faces into original frame)
+
+### How It Works
+
+1. **Face Detection:** Detects faces in the frame using the face analyzer
+2. **Enhancement:** Applies GFPGAN's generative model to restore face quality
+3. **Blending:** Pastes the enhanced face back into the original frame with seamless blending
+
+### Enhancement Output
+
+GFPGAN's `enhance()` method returns a tuple of three values:
+- Cropped face (not used)
+- Restored face (not used)
+- **Full restored image** (returned by `enhance_face()`)
+
+The implementation uses only the third value (full restored image) which includes the enhanced face blended back into the original frame.
+
+### Thread Safety
+
+The enhancer uses a semaphore (`THREAD_SEMAPHORE`) to control concurrent access during enhancement operations, preventing resource conflicts when processing multiple frames in parallel.
+
+## Integration Example
+
+Complete workflow for enhancing faces in an image:
+
+```python
+import roop.globals
+from roop.processors.frame import face_enhancer
+
+# Set global configuration
+roop.globals.target_path = 'low_quality.jpg'
+roop.globals.output_path = 'enhanced.jpg'
+
+# Lifecycle: pre-check
+if not face_enhancer.pre_check():
+    print("Model download failed")
+    exit(1)
+
+# Lifecycle: pre-start validation
+if not face_enhancer.pre_start():
+    print("Validation failed")
+    exit(1)
+
+# Process the image
+face_enhancer.process_image(
+    source_path=None,
+    target_path=roop.globals.target_path,
+    output_path=roop.globals.output_path
+)
+
+# Lifecycle: cleanup
+face_enhancer.post_process()
+
+print(f"Face enhancement complete: {roop.globals.output_path}")
+```
+
+## Combining with Face Swapper
+
+The face enhancer is often used after face swapping to improve the quality of swapped faces:
+
+```python
+import cv2
+import roop.globals
+from roop.face_analyser import get_one_face
+from roop.processors.frame import face_swapper, face_enhancer
+
+# Configure
+roop.globals.many_faces = False
+
+# Initialize models
+face_swapper.pre_check()
+face_enhancer.pre_check()
+
+# Load frames
+source_frame = cv2.imread('source.jpg')
+target_frame = cv2.imread('target.jpg')
+source_face = get_one_face(source_frame)
+
+# Step 1: Swap face
+swapped = face_swapper.process_frame(source_face, target_frame)
+
+# Step 2: Enhance the swapped face
+enhanced = face_enhancer.process_frame(None, swapped)
+
+# Save result
+cv2.imwrite('final_result.jpg', enhanced)
+
+# Cleanup
+face_swapper.post_process()
+face_enhancer.post_process()
+```
+
+## Type Definitions
+
+The processor uses type aliases from `roop.typing`:
+
+- **Face:** InsightFace face detection result object
+- **Frame:** Numpy array representing an image (typically from `cv2.imread()`)
+
+## Dependencies
+
+- `gfpgan` - Face enhancement and restoration model
+- `cv2` (OpenCV) - Image I/O and manipulation
+- `roop.face_analyser` - Face detection utilities (`get_one_face`)
+- `roop.globals` - Global configuration and state
+- `roop.processors.frame.core` - Core video processing utilities

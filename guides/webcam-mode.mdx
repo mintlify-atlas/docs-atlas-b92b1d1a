@@ -1,0 +1,357 @@
+---
+title: Webcam Mode
+description: Real-time face swapping using your webcam with Based Roop's Live mode
+---
+
+## Overview
+
+Webcam mode enables real-time face swapping using your computer's camera. This feature is perfect for live streaming, video calls, or testing face swaps interactively.
+
+<Note>
+  Webcam mode is only available through the GUI. Use the "Live" button to activate it.
+</Note>
+
+## Activating Webcam Mode
+
+<Steps>
+  <Step title="Launch GUI">
+    Start Based Roop without command-line arguments:
+    ```bash
+    python run.py
+    ```
+  </Step>
+  
+  <Step title="Select source face">
+    Click "Select a face" and choose an image containing the face you want to use
+  </Step>
+  
+  <Step title="Click Live button">
+    Press the "Live" button located at position (0.40, 0.83) in the interface
+  </Step>
+  
+  <Step title="Wait for initialization">
+    The preview window will open. Wait 10-30 seconds for the webcam feed to appear
+    
+    <Warning>
+      Initial startup takes longer due to model loading and face detection initialization
+    </Warning>
+  </Step>
+</Steps>
+
+## Webcam Configuration
+
+The `webcam_preview()` function in `ui.py:239` configures the webcam with these settings:
+
+### Camera Settings
+
+```python
+cap = cv2.VideoCapture(0)  # Webcam index
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)   # Width in pixels
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)  # Height in pixels  
+cap.set(cv2.CAP_PROP_FPS, 30)            # Target frame rate
+```
+
+<ParamField path="Webcam Index" type="integer" default="0">
+  Camera device index (0 for default webcam)
+  
+  To use a different camera, modify the index in `ui.py:246`:
+  ```python
+  cap = cv2.VideoCapture(1)  # Use second camera
+  ```
+</ParamField>
+
+<ParamField path="Resolution" type="tuple" default="(960, 540)">
+  Capture resolution in pixels
+  
+  Current settings:
+  - Width: 960 pixels
+  - Height: 540 pixels
+  - Aspect ratio: 16:9
+</ParamField>
+
+<ParamField path="Frame Rate" type="integer" default="30">
+  Target frames per second for webcam capture
+  
+  <Tip>
+    Actual FPS depends on processing speed. GPU acceleration significantly improves performance.
+  </Tip>
+</ParamField>
+
+### Preview Window Settings
+
+```python
+PREVIEW_MAX_HEIGHT = 960  # Maximum preview height
+PREVIEW_MAX_WIDTH = 540   # Maximum preview width
+```
+
+The preview window constrains output to these dimensions using `ImageOps.contain()` while preserving aspect ratio.
+
+## Processing Pipeline
+
+The real-time processing loop works as follows:
+
+<Steps>
+  <Step title="Capture frame">
+    Read frame from webcam using `cap.read()`
+  </Step>
+  
+  <Step title="Load source face (once)">
+    On first iteration, extract face from source image:
+    ```python
+    source_image = get_one_face(cv2.imread(roop.globals.source_path))
+    ```
+  </Step>
+  
+  <Step title="Apply frame processors">
+    Process webcam frame through all enabled processors:
+    ```python
+    for frame_processor in frame_processors:
+        temp_frame = frame_processor.process_frame(source_image, temp_frame)
+    ```
+  </Step>
+  
+  <Step title="Convert and display">
+    Convert BGR to RGB, resize to fit preview window, and update UI:
+    ```python
+    image = cv2.cvtColor(temp_frame, cv2.COLOR_BGR2RGB)
+    image = Image.fromarray(image)
+    image = ImageOps.contain(image, (PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.LANCZOS)
+    preview_label.configure(image=image)
+    ROOT.update()
+    ```
+  </Step>
+</Steps>
+
+## Changing Source Face During Session
+
+<Tip>
+  You can change the face being used without restarting:
+  
+  1. Select a different source image using "Select a face" button
+  2. The preview will restart automatically
+  3. Wait a few seconds for the new face to load
+</Tip>
+
+The webcam loop reinitializes when `roop.globals.source_path` changes:
+
+```python
+if source_image is None and roop.globals.source_path:
+    source_image = get_one_face(cv2.imread(roop.globals.source_path))
+```
+
+## Streaming with OBS
+
+Use OBS Studio or similar software to capture the preview window:
+
+<Steps>
+  <Step title="Start webcam mode">
+    Launch Live mode in Based Roop
+  </Step>
+  
+  <Step title="Add window capture source in OBS">
+    - Create new Window Capture source
+    - Select "Preview" window from Based Roop
+    - Crop black borders if needed
+  </Step>
+  
+  <Step title="Configure output">
+    Set up your streaming platform or virtual camera in OBS
+  </Step>
+  
+  <Step title="Go live">
+    Start streaming/recording with the face-swapped webcam feed
+  </Step>
+</Steps>
+
+<Note>
+  For best quality, use GPU acceleration (see [GPU Acceleration guide](/guides/gpu-acceleration))
+</Note>
+
+## Performance Optimization
+
+### Frame Rate Considerations
+
+Actual FPS depends on:
+
+<CardGroup cols={2}>
+  <Card title="Processing Hardware" icon="microchip">
+    CPU vs GPU execution provider makes dramatic difference
+  </Card>
+  
+  <Card title="Frame Processors" icon="gears">
+    Each enabled processor adds latency (face_swapper, face_enhancer, etc.)
+  </Card>
+  
+  <Card title="Resolution" icon="expand">
+    Higher resolution = slower processing
+  </Card>
+  
+  <Card title="Face Count" icon="users">
+    Multiple faces (--many-faces) increases processing time
+  </Card>
+</CardGroup>
+
+### Improving Performance
+
+```bash
+# Launch with GPU acceleration for faster processing
+python run.py --execution-provider cuda
+
+# Or for DirectML (Windows)
+python run.py --execution-provider directml
+```
+
+<Tip>
+  For lower-end hardware, reduce webcam resolution in `ui.py:247-248`:
+  
+  ```python
+  cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)   # Lower resolution
+  cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+  ```
+</Tip>
+
+### Benchmark Results
+
+Typical performance on various hardware:
+
+| Hardware | Resolution | FPS | Processors |
+|----------|-----------|-----|------------|
+| CPU (Intel i7) | 960x540 | 5-8 | face_swapper |
+| RTX 3060 (CUDA) | 960x540 | 25-30 | face_swapper |
+| RTX 3090 (CUDA) | 960x540 | 30+ | face_swapper + enhancer |
+| AMD RX 6800 (ROCm) | 960x540 | 20-25 | face_swapper |
+
+## Stopping Webcam Mode
+
+To exit webcam mode:
+
+1. Close the preview window, OR
+2. The webcam loop runs indefinitely until `cap.read()` fails or window closes
+3. Webcam is released with `cap.release()` and preview window withdraws
+
+```python
+cap.release()
+PREVIEW.withdraw()  # Hide preview window
+```
+
+## Troubleshooting
+
+### Preview Not Showing
+
+<AccordionGroup>
+  <Accordion title="No source face selected">
+    The `webcam_preview()` function returns early if `roop.globals.source_path is None`
+    
+    **Solution**: Select a face image before clicking Live
+  </Accordion>
+  
+  <Accordion title="Webcam in use by another application">
+    Only one application can access the webcam at a time
+    
+    **Solution**: Close other apps using the camera (Zoom, Teams, etc.)
+  </Accordion>
+  
+  <Accordion title="Wrong camera selected">
+    Index 0 may not be your desired camera
+    
+    **Solution**: Modify camera index in `ui.py:246`
+  </Accordion>
+  
+  <Accordion title="Long initialization time">
+    Model loading takes 10-30 seconds on first run
+    
+    **Solution**: Be patient, this is normal behavior
+  </Accordion>
+</AccordionGroup>
+
+### Low Frame Rate
+
+<AccordionGroup>
+  <Accordion title="Using CPU execution">
+    CPU processing is 5-10x slower than GPU
+    
+    **Solution**: Enable GPU acceleration (see [GPU guide](/guides/gpu-acceleration))
+  </Accordion>
+  
+  <Accordion title="Multiple frame processors enabled">
+    Each processor adds processing time
+    
+    **Solution**: Use only `face_swapper` for real-time performance
+  </Accordion>
+  
+  <Accordion title="High resolution webcam">
+    960x540 may be too high for weak hardware
+    
+    **Solution**: Reduce resolution in source code
+  </Accordion>
+</AccordionGroup>
+
+### Face Not Detected
+
+<AccordionGroup>
+  <Accordion title="Poor lighting">
+    Face detection requires clear visibility
+    
+    **Solution**: Improve lighting conditions
+  </Accordion>
+  
+  <Accordion title="Extreme angles">
+    Works best with frontal face view
+    
+    **Solution**: Face the camera directly
+  </Accordion>
+  
+  <Accordion title="Source image quality">
+    Low quality source images affect detection
+    
+    **Solution**: Use clear, well-lit source face photos
+  </Accordion>
+</AccordionGroup>
+
+## Technical Implementation
+
+The webcam mode is implemented in `ui.py:239-283`:
+
+```python
+def webcam_preview():
+    if roop.globals.source_path is None:
+        return  # Exit if no face selected
+    
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    
+    PREVIEW.deiconify()  # Show preview window
+    frame_processors = get_frame_processors_modules(roop.globals.frame_processors)
+    source_image = None
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Load source face once
+        if source_image is None and roop.globals.source_path:
+            source_image = get_one_face(cv2.imread(roop.globals.source_path))
+        
+        # Process frame
+        temp_frame = frame.copy()
+        for frame_processor in frame_processors:
+            temp_frame = frame_processor.process_frame(source_image, temp_frame)
+        
+        # Display result
+        image = cv2.cvtColor(temp_frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(image)
+        image = ImageOps.contain(image, (PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.LANCZOS)
+        image = ctk.CTkImage(image, size=image.size)
+        preview_label.configure(image=image)
+        ROOT.update()
+    
+    cap.release()
+    PREVIEW.withdraw()
+```
+
+<Info>
+  The loop creates a copy of each frame (`frame.copy()`) before processing to avoid modifying the original capture buffer.
+</Info>

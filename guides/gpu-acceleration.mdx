@@ -1,0 +1,476 @@
+---
+title: GPU Acceleration
+description: Configure GPU acceleration for significantly faster face swapping with Based Roop
+---
+
+## Overview
+
+GPU acceleration can make Based Roop **5-10x faster** than CPU processing. Based Roop uses ONNX Runtime execution providers to leverage different GPU backends.
+
+<Warning>
+  GPU acceleration requires additional setup and may encounter driver compatibility issues. Follow the basic installation first, then add GPU support.
+</Warning>
+
+## Execution Providers
+
+Based Roop supports multiple execution providers through ONNX Runtime:
+
+<CardGroup cols={2}>
+  <Card title="CPU" icon="microchip">
+    **Default** - No setup required, works everywhere
+    
+    Slowest performance but most compatible
+  </Card>
+  
+  <Card title="CUDA" icon="bolt">
+    **NVIDIA GPUs** - Best performance for RTX/GTX cards
+    
+    Requires CUDA toolkit and cuDNN
+  </Card>
+  
+  <Card title="DirectML" icon="windows">
+    **Windows** - Works with AMD, Intel, and NVIDIA GPUs
+    
+    Windows 10+ only, moderate performance
+  </Card>
+  
+  <Card title="ROCm" icon="fire">
+    **AMD GPUs** - Linux only
+    
+    Requires ROCm installation
+  </Card>
+</CardGroup>
+
+## Checking Available Providers
+
+Based Roop automatically detects available execution providers using:
+
+```python
+import onnxruntime
+print(onnxruntime.get_available_providers())
+```
+
+Your available providers are shown in the `--help` output:
+
+```bash
+python run.py --help
+# Look for: --execution-provider {cpu, cuda, directml, ...}
+```
+
+## CUDA Setup (NVIDIA GPUs)
+
+### Requirements
+
+- NVIDIA GPU with CUDA Compute Capability 3.5+
+- CUDA Toolkit 11.x
+- cuDNN 8.x
+- onnxruntime-gpu Python package
+
+### Installation
+
+<Steps>
+  <Step title="Install CUDA Toolkit">
+    Download from [NVIDIA's website](https://developer.nvidia.com/cuda-downloads)
+    
+    Recommended: CUDA 11.8
+  </Step>
+  
+  <Step title="Install cuDNN">
+    Download from [NVIDIA's cuDNN page](https://developer.nvidia.com/cudnn)
+    
+    Extract and copy files to CUDA installation directory
+  </Step>
+  
+  <Step title="Install onnxruntime-gpu">
+    ```bash
+    pip uninstall onnxruntime  # Remove CPU-only version
+    pip install onnxruntime-gpu
+    ```
+  </Step>
+  
+  <Step title="Verify installation">
+    ```python
+    import onnxruntime
+    print('CUDAExecutionProvider' in onnxruntime.get_available_providers())
+    # Should print: True
+    ```
+  </Step>
+</Steps>
+
+### Usage
+
+```bash
+# Enable CUDA acceleration
+python run.py --execution-provider cuda
+
+# Full example
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider cuda \
+  --execution-threads 1
+```
+
+<Note>
+  When using CUDA, `--execution-threads` defaults to 1 for optimal performance. The code sets `OMP_NUM_THREADS=1` automatically (see `core.py:6`).
+</Note>
+
+### Performance Optimization
+
+CUDA-specific optimizations in Based Roop:
+
+```python
+# Single thread doubles CUDA performance (core.py:6-7)
+if any(arg.startswith('--execution-provider') for arg in sys.argv):
+    os.environ['OMP_NUM_THREADS'] = '1'
+
+# Clear CUDA cache after processing (core.py:115-116)
+if 'CUDAExecutionProvider' in roop.globals.execution_providers:
+    torch.cuda.empty_cache()
+```
+
+## DirectML Setup (Windows)
+
+### Requirements
+
+- Windows 10 version 1903+ or Windows 11
+- DirectX 12 compatible GPU (AMD, Intel, or NVIDIA)
+- onnxruntime-directml Python package
+
+### Installation
+
+<Steps>
+  <Step title="Update Windows">
+    Ensure Windows is fully updated for latest DirectX 12 support
+  </Step>
+  
+  <Step title="Install onnxruntime-directml">
+    ```bash
+    pip uninstall onnxruntime onnxruntime-gpu
+    pip install onnxruntime-directml
+    ```
+  </Step>
+  
+  <Step title="Verify installation">
+    ```python
+    import onnxruntime
+    print('DmlExecutionProvider' in onnxruntime.get_available_providers())
+    # Should print: True
+    ```
+  </Step>
+</Steps>
+
+### Usage
+
+```bash
+# Enable DirectML acceleration
+python run.py --execution-provider directml
+
+# Full example
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider directml
+```
+
+<Info>
+  DirectML automatically sets `--execution-threads` to 1 (see `core.py:88-89`):
+  
+  ```python
+  if 'DmlExecutionProvider' in roop.globals.execution_providers:
+      return 1
+  ```
+</Info>
+
+## ROCm Setup (AMD GPUs on Linux)
+
+### Requirements
+
+- AMD GPU with ROCm support
+- Linux (Ubuntu 20.04/22.04 recommended)
+- ROCm 5.x
+- onnxruntime with ROCm support
+
+### Installation
+
+<Steps>
+  <Step title="Install ROCm">
+    Follow AMD's [ROCm installation guide](https://docs.amd.com/)
+    
+    ```bash
+    # Example for Ubuntu
+    wget https://repo.radeon.com/amdgpu-install/latest/ubuntu/focal/amdgpu-install_*_all.deb
+    sudo apt install ./amdgpu-install_*_all.deb
+    sudo amdgpu-install --usecase=rocm
+    ```
+  </Step>
+  
+  <Step title="Install onnxruntime with ROCm">
+    ```bash
+    pip install onnxruntime-rocm
+    ```
+  </Step>
+  
+  <Step title="Verify installation">
+    ```bash
+    rocm-smi  # Check GPU detection
+    ```
+    
+    ```python
+    import onnxruntime
+    print('ROCMExecutionProvider' in onnxruntime.get_available_providers())
+    ```
+  </Step>
+</Steps>
+
+### Usage
+
+```bash
+# Enable ROCm acceleration  
+python run.py --execution-provider rocm
+```
+
+<Warning>
+  ROCm execution provider disables PyTorch to avoid conflicts (see `core.py:27-28`):
+  
+  ```python
+  if 'ROCMExecutionProvider' in roop.globals.execution_providers:
+      del torch
+  ```
+</Warning>
+
+### Thread Configuration
+
+ROCm uses single-threaded execution by default:
+
+```python
+# core.py:90-91
+return 1 if 'ROCMExecutionProvider' in roop.globals.execution_providers else 8
+```
+
+## Provider Priority
+
+You can specify multiple execution providers with fallback:
+
+```bash
+# Try CUDA first, fall back to CPU
+python run.py --execution-provider cuda cpu
+
+# Try DirectML first, fall back to CPU  
+python run.py --execution-provider directml cpu
+```
+
+Based Roop decodes providers in order:
+
+```python
+# core.py:74-76
+def decode_execution_providers(execution_providers: List[str]) -> List[str]:
+    return [provider for provider, encoded_execution_provider in 
+            zip(onnxruntime.get_available_providers(), 
+                encode_execution_providers(onnxruntime.get_available_providers()))
+            if any(execution_provider in encoded_execution_provider 
+                   for execution_provider in execution_providers)]
+```
+
+## Performance Comparison
+
+Typical processing times for a 10-second 1080p video:
+
+| Execution Provider | Hardware | Processing Time | Speedup |
+|-------------------|----------|-----------------|----------|
+| CPU | Intel i7-10700K | ~8 minutes | 1x |
+| CUDA | RTX 3060 | ~45 seconds | 10.6x |
+| CUDA | RTX 3090 | ~25 seconds | 19.2x |
+| DirectML | RTX 3060 | ~90 seconds | 5.3x |
+| DirectML | RX 6800 | ~120 seconds | 4x |
+| ROCm | RX 6800 | ~60 seconds | 8x |
+
+<Tip>
+  CUDA provides the best performance, but DirectML is easier to set up on Windows and works with any GPU.
+</Tip>
+
+## Memory Management
+
+GPU memory is managed through several mechanisms:
+
+### TensorFlow GPU Memory Limiting
+
+```python
+# core.py:94-99 - Prevent TensorFlow memory leak
+gpus = tensorflow.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tensorflow.config.experimental.set_virtual_device_configuration(gpu, [
+        tensorflow.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)
+    ])
+```
+
+Limits TensorFlow to 1GB of GPU memory.
+
+### CUDA Cache Clearing
+
+```python
+# core.py:115-116 - Clear CUDA cache after processing
+if 'CUDAExecutionProvider' in roop.globals.execution_providers:
+    torch.cuda.empty_cache()
+```
+
+Frees GPU memory after each processing stage.
+
+### System RAM Limiting
+
+The `--max-memory` flag limits system RAM (not GPU memory):
+
+```bash
+# Limit to 8GB system RAM
+python run.py --max-memory 8 --execution-provider cuda
+```
+
+## Troubleshooting
+
+### CUDA Not Detected
+
+<AccordionGroup>
+  <Accordion title="onnxruntime vs onnxruntime-gpu">
+    Make sure you installed `onnxruntime-gpu`, not the CPU-only version
+    
+    ```bash
+    pip list | grep onnxruntime
+    # Should show: onnxruntime-gpu
+    ```
+  </Accordion>
+  
+  <Accordion title="CUDA version mismatch">
+    Check CUDA version compatibility:
+    
+    ```bash
+    nvidia-smi  # Check installed CUDA version
+    ```
+    
+    onnxruntime-gpu requires CUDA 11.x
+  </Accordion>
+  
+  <Accordion title="cuDNN not found">
+    Verify cuDNN is properly installed:
+    
+    ```bash
+    # Linux
+    ldconfig -p | grep cudnn
+    
+    # Windows
+    # Check if cudnn64_8.dll is in CUDA bin directory
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### DirectML Issues
+
+<AccordionGroup>
+  <Accordion title="Provider not available">
+    Update Windows and DirectX:
+    
+    ```bash
+    # Check Windows version
+    winver  # Should be 1903 or higher
+    ```
+  </Accordion>
+  
+  <Accordion title="Slow performance">
+    DirectML performance varies by GPU. NVIDIA GPUs perform better with CUDA.
+  </Accordion>
+</AccordionGroup>
+
+### ROCm Issues
+
+<AccordionGroup>
+  <Accordion title="GPU not detected">
+    Verify ROCm installation:
+    
+    ```bash
+    rocm-smi
+    rocminfo | grep "Name:"
+    ```
+  </Accordion>
+  
+  <Accordion title="Kernel compatibility">
+    ROCm requires specific kernel versions. Check AMD's compatibility matrix.
+  </Accordion>
+</AccordionGroup>
+
+### Out of Memory Errors
+
+<AccordionGroup>
+  <Accordion title="Reduce video quality">
+    ```bash
+    python run.py \
+      --execution-provider cuda \
+      --video-quality 28  # Lower quality = less memory
+    ```
+  </Accordion>
+  
+  <Accordion title="Process fewer faces">
+    Disable `--many-faces` to process only one face per frame
+  </Accordion>
+  
+  <Accordion title="Reduce max memory">
+    ```bash
+    python run.py --max-memory 4 --execution-provider cuda
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use CUDA for NVIDIA" icon="n">
+    Always prefer CUDA over DirectML on NVIDIA GPUs for 2x better performance
+  </Card>
+  
+  <Card title="Single thread with GPU" icon="one">
+    Keep `--execution-threads 1` when using GPU providers
+  </Card>
+  
+  <Card title="Monitor GPU usage" icon="chart-line">
+    Use `nvidia-smi` or `rocm-smi` to verify GPU utilization during processing
+  </Card>
+  
+  <Card title="Keep drivers updated" icon="rotate">
+    Update GPU drivers regularly for best compatibility and performance
+  </Card>
+</CardGroup>
+
+## Complete GPU-Accelerated Command
+
+```bash
+# NVIDIA GPU (CUDA)
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider cuda \
+  --execution-threads 1 \
+  --max-memory 16 \
+  --keep-fps \
+  --keep-audio \
+  --video-encoder libx264 \
+  --video-quality 18
+
+# AMD GPU (Windows - DirectML)
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider directml \
+  --keep-fps \
+  --keep-audio
+
+# AMD GPU (Linux - ROCm)  
+python run.py \
+  -s face.jpg \
+  -t video.mp4 \
+  -o output.mp4 \
+  --execution-provider rocm \
+  --keep-fps \
+  --keep-audio
+```

@@ -1,0 +1,303 @@
+---
+title: 'Installation'
+description: 'Install Based Roop on Windows, macOS, and Linux'
+---
+
+## Prerequisites
+
+Before installing Based Roop, ensure your system meets the following requirements:
+
+<Note>
+  Based Roop requires **Python 3.9 or higher**. The application will check your Python version on startup and exit if you're running an older version.
+</Note>
+
+### System Requirements
+
+- **Python**: Version 3.9 or higher
+- **FFmpeg**: Required for video processing
+- **RAM**: At least 4GB (16GB recommended for better performance)
+- **Storage**: ~300MB for models (downloaded automatically on first run)
+
+## Step 1: Install Python
+
+<Steps>
+  <Step title="Check Python Version">
+    First, verify if Python 3.9+ is already installed:
+    
+    ```bash
+    python --version
+    ```
+    
+    If the version is below 3.9 or Python is not installed, download it from [python.org](https://www.python.org/downloads/).
+  </Step>
+  
+  <Step title="Verify Installation">
+    After installation, confirm Python is in your PATH:
+    
+    ```bash
+    python --version
+    # Should output: Python 3.9.x or higher
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Install FFmpeg
+
+FFmpeg is essential for video processing. Based Roop will not start without it.
+
+<Warning>
+  The application performs a startup check for FFmpeg. If it's not found, you'll see: `ffmpeg is not installed.`
+</Warning>
+
+<Tabs>
+  <Tab title="Windows">
+    ### Using Chocolatey (Recommended)
+    
+    ```bash
+    choco install ffmpeg
+    ```
+    
+    ### Manual Installation
+    
+    1. Download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html)
+    2. Extract the archive
+    3. Add the `bin` folder to your system PATH
+    4. Verify installation:
+    
+    ```bash
+    ffmpeg -version
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ### Using Homebrew (Recommended)
+    
+    ```bash
+    brew install ffmpeg
+    ```
+    
+    ### Verify Installation
+    
+    ```bash
+    ffmpeg -version
+    ```
+  </Tab>
+  
+  <Tab title="Linux">
+    ### Ubuntu/Debian
+    
+    ```bash
+    sudo apt update
+    sudo apt install ffmpeg
+    ```
+    
+    ### Fedora
+    
+    ```bash
+    sudo dnf install ffmpeg
+    ```
+    
+    ### Arch Linux
+    
+    ```bash
+    sudo pacman -S ffmpeg
+    ```
+    
+    ### Verify Installation
+    
+    ```bash
+    ffmpeg -version
+    ```
+  </Tab>
+</Tabs>
+
+## Step 3: Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/based-roop.git
+cd based-roop
+```
+
+## Step 4: Install Python Dependencies
+
+Based Roop uses several Python libraries for AI processing, including PyTorch, ONNX Runtime, InsightFace, and TensorFlow.
+
+### Basic Installation (CPU Only)
+
+Install all required dependencies from `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+<Accordion title="View requirements.txt dependencies">
+  The application requires the following packages:
+  
+  - **numpy** (1.23.5) - Numerical computing
+  - **opencv-python** (4.7.0.72) - Computer vision operations
+  - **onnx** (1.14.0) - ONNX model format support
+  - **insightface** (0.7.3) - Face detection and recognition
+  - **psutil** (5.9.5) - System and process utilities
+  - **tk** (0.1.0) - GUI toolkit
+  - **customtkinter** (5.1.3) - Modern GUI components
+  - **pillow** (9.5.0) - Image processing
+  - **torch** (2.0.1) - PyTorch deep learning framework
+  - **torchvision** (0.15.2) - Computer vision models and tools
+  - **onnxruntime** - ONNX model inference (version varies by platform)
+  - **tensorflow** - TensorFlow deep learning framework
+  - **opennsfw2** (0.10.2) - Content safety detection
+  - **protobuf** (4.23.2) - Protocol buffers
+  - **tqdm** (4.65.0) - Progress bars
+  - **gfpgan** (1.3.8) - Face enhancement
+</Accordion>
+
+### Platform-Specific Notes
+
+<Tabs>
+  <Tab title="Windows/Linux">
+    The installation automatically includes CUDA 11.8 support:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    This installs:
+    - `torch==2.0.1+cu118`
+    - `torchvision==0.15.2+cu118`
+    - `onnxruntime-gpu==1.15.0`
+  </Tab>
+  
+  <Tab title="macOS (Intel)">
+    macOS Intel uses CPU-optimized packages:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    This installs:
+    - `torch==2.0.1`
+    - `torchvision==0.15.2`
+    - `onnxruntime==1.15.0`
+    - `tensorflow==2.13.0rc1`
+  </Tab>
+  
+  <Tab title="macOS (Apple Silicon)">
+    macOS with Apple Silicon (M1/M2) uses optimized runtime:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    This installs:
+    - `torch==2.0.1`
+    - `torchvision==0.15.2`
+    - `onnxruntime-silicon==1.13.1`
+    - `tensorflow==2.13.0rc1`
+  </Tab>
+</Tabs>
+
+## Step 5: Model Download
+
+<Note>
+  When you run Based Roop for the first time, it will automatically download AI models (~300MB). This is a one-time download.
+</Note>
+
+The models are downloaded automatically when you first run the application:
+
+```bash
+python run.py
+```
+
+You'll see the download progress during the first startup. These models are used for face detection, recognition, and swapping.
+
+## GPU Acceleration (Optional)
+
+For significantly faster processing, you can enable GPU acceleration.
+
+<Warning>
+  GPU acceleration requires additional setup and may involve troubleshooting driver and CUDA compatibility issues.
+</Warning>
+
+### Performance Comparison
+
+- **CPU Processing**: Slower but more compatible, works on all systems
+- **GPU Processing**: Much faster (10-50x speedup), requires compatible GPU
+
+### Supported Execution Providers
+
+Based Roop supports multiple execution providers:
+
+- **CPU** (default) - Works on all systems
+- **CUDA** - NVIDIA GPUs with CUDA support
+- **DirectML** - Windows DirectX 12 compatible GPUs
+- **ROCm** - AMD GPUs on Linux
+- **CoreML** - Apple Silicon acceleration
+
+For detailed GPU setup instructions, see the [GPU Acceleration Guide](/guides/gpu-acceleration).
+
+### Quick GPU Test
+
+To verify GPU is available:
+
+```bash
+python run.py --execution-provider cuda
+```
+
+If GPU is properly configured, this will use CUDA acceleration.
+
+## Verify Installation
+
+Run the application to verify everything is installed correctly:
+
+```bash
+python run.py --version
+```
+
+This should display the version information without errors.
+
+## Troubleshooting
+
+<Accordion title="Python version error">
+  **Error**: `Python version is not supported - please upgrade to 3.9 or higher.`
+  
+  **Solution**: Install Python 3.9 or higher from [python.org](https://www.python.org/downloads/) and ensure it's in your system PATH.
+</Accordion>
+
+<Accordion title="FFmpeg not found">
+  **Error**: `ffmpeg is not installed.`
+  
+  **Solution**: Install FFmpeg using your package manager or manually add it to your system PATH. Verify with `ffmpeg -version`.
+</Accordion>
+
+<Accordion title="Module import errors">
+  **Error**: `ModuleNotFoundError: No module named 'X'`
+  
+  **Solution**: Ensure you've installed all dependencies:
+  
+  ```bash
+  pip install -r requirements.txt
+  ```
+  
+  You may need to use `pip3` instead of `pip` on some systems.
+</Accordion>
+
+<Accordion title="CUDA/GPU errors">
+  **Error**: Various GPU-related errors
+  
+  **Solution**: 
+  1. First verify CPU-only mode works: `python run.py`
+  2. Check your GPU drivers are up to date
+  3. Verify CUDA toolkit version matches PyTorch requirements
+  4. See the [GPU Acceleration Guide](/guides/gpu-acceleration) for detailed setup
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Learn how to perform your first face swap
+  </Card>
+  <Card title="GPU Acceleration" icon="microchip" href="/gpu-acceleration">
+    Set up GPU for faster processing
+  </Card>
+</CardGroup>

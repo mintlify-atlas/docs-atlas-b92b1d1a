@@ -1,0 +1,395 @@
+---
+title: Core Module
+description: Main entry point and orchestration functions for Based Roop
+---
+
+The `roop.core` module provides the main entry point and orchestration logic for the face swapping application.
+
+## Main Functions
+
+### run()
+
+Main entry point that orchestrates the entire face swapping process.
+
+```python
+def run() -> None
+```
+
+**Description**
+
+Executes the complete workflow:
+1. Parses command-line arguments
+2. Performs pre-flight checks
+3. Validates frame processors
+4. Limits system resources
+5. Starts processing (headless or UI mode)
+
+**Example**
+
+```python
+import roop.core
+
+# Run the application
+roop.core.run()
+```
+
+**Source**: `roop/core.py:195-207`
+
+---
+
+### start()
+
+Starts the face swapping processing workflow.
+
+```python
+def start() -> None
+```
+
+**Description**
+
+Handles the actual processing logic:
+- For images: Processes image-to-image face swapping
+- For videos: Extracts frames, processes each frame, and creates output video
+- Manages FPS preservation and audio restoration based on global settings
+
+**Processing Flow**
+
+1. **Image-to-Image**: Copies target to output and applies frame processors
+2. **Image-to-Video**: 
+   - Creates temporary directory
+   - Extracts frames from target video
+   - Processes each frame with face swapping
+   - Creates output video with optional FPS/audio preservation
+
+**Example**
+
+```python
+import roop.globals
+import roop.core
+
+# Configure paths
+roop.globals.source_path = 'source.jpg'
+roop.globals.target_path = 'target.mp4'
+roop.globals.output_path = 'output.mp4'
+
+# Start processing
+roop.core.start()
+```
+
+**Source**: `roop/core.py:135-186`
+
+---
+
+### parse_args()
+
+Parses command-line arguments and initializes global configuration.
+
+```python
+def parse_args() -> None
+```
+
+**Command-Line Arguments**
+
+<ParamField path="-s, --source" type="string">
+  Path to source image containing the face to swap
+</ParamField>
+
+<ParamField path="-t, --target" type="string">
+  Path to target image or video where face will be swapped
+</ParamField>
+
+<ParamField path="-o, --output" type="string">
+  Path to output file or directory
+</ParamField>
+
+<ParamField path="--frame-processor" type="list[string]" default="['face_swapper']">
+  Frame processors to use (e.g., face_swapper, face_enhancer)
+</ParamField>
+
+<ParamField path="--keep-fps" type="boolean" default="false">
+  Preserve original video FPS
+</ParamField>
+
+<ParamField path="--keep-audio" type="boolean" default="true">
+  Preserve original audio from target video
+</ParamField>
+
+<ParamField path="--keep-frames" type="boolean" default="false">
+  Keep temporary frames after processing
+</ParamField>
+
+<ParamField path="--many-faces" type="boolean" default="false">
+  Process every face in the frame instead of just one
+</ParamField>
+
+<ParamField path="--video-encoder" type="string" default="libx264">
+  Video encoder to use. Choices: `libx264`, `libx265`, `libvpx-vp9`
+</ParamField>
+
+<ParamField path="--video-quality" type="int" default="18">
+  Output video quality (0-51, lower is better)
+</ParamField>
+
+<ParamField path="--max-memory" type="int" default="4 (macOS) or 16 (other)">
+  Maximum RAM usage in GB
+</ParamField>
+
+<ParamField path="--execution-provider" type="list[string]" default="['cpu']">
+  Execution providers for inference (e.g., cpu, cuda, rocm)
+</ParamField>
+
+<ParamField path="--execution-threads" type="int" default="1 or 8">
+  Number of execution threads
+</ParamField>
+
+**Example**
+
+```bash
+python -m roop.core \
+  --source face.jpg \
+  --target video.mp4 \
+  --output result.mp4 \
+  --keep-fps \
+  --execution-provider cuda
+```
+
+**Source**: `roop/core.py:34-67`
+
+---
+
+## Helper Functions
+
+### limit_resources()
+
+Limits system resource usage to prevent memory issues.
+
+```python
+def limit_resources() -> None
+```
+
+**Description**
+
+Configures resource limits:
+- Sets TensorFlow GPU memory limit to 1024 MB to prevent memory leaks
+- Applies OS-specific memory limits based on `roop.globals.max_memory`
+- Handles platform-specific implementations (macOS, Windows, Linux)
+
+**Platform Behavior**
+
+- **macOS**: Uses `max_memory * 1024^6` bytes
+- **Windows**: Uses `SetProcessWorkingSetSize` via ctypes
+- **Linux**: Uses `resource.setrlimit` with `RLIMIT_DATA`
+
+**Example**
+
+```python
+import roop.globals
+import roop.core
+
+roop.globals.max_memory = 8  # 8 GB
+roop.core.limit_resources()
+```
+
+**Source**: `roop/core.py:93-111`
+
+---
+
+### pre_check()
+
+Performs pre-flight system checks before processing.
+
+```python
+def pre_check() -> bool
+```
+
+**Returns**
+
+<ResponseField name="success" type="bool">
+  `True` if all checks pass, `False` otherwise
+</ResponseField>
+
+**Checks**
+
+1. **Python Version**: Requires Python 3.9 or higher
+2. **FFmpeg Installation**: Verifies ffmpeg is available in PATH
+
+**Example**
+
+```python
+import roop.core
+
+if roop.core.pre_check():
+    print("System ready")
+else:
+    print("System check failed")
+```
+
+**Source**: `roop/core.py:119-126`
+
+---
+
+### release_resources()
+
+Releases GPU resources after processing.
+
+```python
+def release_resources() -> None
+```
+
+**Description**
+
+Clears CUDA cache if using CUDA execution provider to free GPU memory.
+
+**Example**
+
+```python
+import roop.core
+
+# After processing a frame
+roop.core.release_resources()
+```
+
+**Source**: `roop/core.py:114-116`
+
+---
+
+### update_status()
+
+Updates processing status in console and UI.
+
+```python
+def update_status(message: str, scope: str = 'ROOP.CORE') -> None
+```
+
+**Parameters**
+
+<ParamField path="message" type="string" required>
+  Status message to display
+</ParamField>
+
+<ParamField path="scope" type="string" default="ROOP.CORE">
+  Scope/module name for the status message
+</ParamField>
+
+**Example**
+
+```python
+import roop.core
+
+roop.core.update_status('Processing frame 1/100', 'FACE_SWAPPER')
+# Output: [FACE_SWAPPER] Processing frame 1/100
+```
+
+**Source**: `roop/core.py:129-132`
+
+---
+
+### destroy()
+
+Cleans up temporary files and exits the application.
+
+```python
+def destroy() -> None
+```
+
+**Description**
+
+Performs cleanup operations:
+- Removes temporary directories if target path exists
+- Exits the application
+
+**Example**
+
+```python
+import roop.core
+
+# Clean exit
+roop.core.destroy()
+```
+
+**Source**: `roop/core.py:189-192`
+
+---
+
+## Execution Provider Functions
+
+### suggest_execution_providers()
+
+Returns available execution providers for the current system.
+
+```python
+def suggest_execution_providers() -> List[str]
+```
+
+**Returns**
+
+<ResponseField name="providers" type="list[string]">
+  List of available execution providers (e.g., `['cpu', 'cuda']`)
+</ResponseField>
+
+**Example**
+
+```python
+import roop.core
+
+providers = roop.core.suggest_execution_providers()
+print(providers)  # ['cpu', 'cuda', 'tensorrt']
+```
+
+**Source**: `roop/core.py:83-84`
+
+---
+
+### suggest_execution_threads()
+
+Suggests optimal number of execution threads based on execution provider.
+
+```python
+def suggest_execution_threads() -> int
+```
+
+**Returns**
+
+<ResponseField name="threads" type="int">
+  Suggested thread count (1 for DML/ROCM, 8 for others)
+</ResponseField>
+
+**Example**
+
+```python
+import roop.core
+import roop.globals
+
+roop.globals.execution_providers = ['CUDAExecutionProvider']
+threads = roop.core.suggest_execution_threads()
+print(threads)  # 8
+```
+
+**Source**: `roop/core.py:87-90`
+
+---
+
+### suggest_max_memory()
+
+Suggests default maximum memory based on platform.
+
+```python
+def suggest_max_memory() -> int
+```
+
+**Returns**
+
+<ResponseField name="memory_gb" type="int">
+  Suggested memory in GB (4 for macOS, 16 for others)
+</ResponseField>
+
+**Example**
+
+```python
+import roop.core
+
+memory = roop.core.suggest_max_memory()
+print(f"Suggested memory: {memory} GB")
+```
+
+**Source**: `roop/core.py:79-80`
